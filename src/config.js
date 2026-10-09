@@ -19,6 +19,9 @@ const DEFAULTS = {
   stateFile: undefined,
   webhook: {},
   bot: undefined,
+  lookup: undefined,
+  relay: { user: true, assistant: true, presence: true },
+  welcome: { enabled: true },
 };
 
 /**
@@ -29,7 +32,10 @@ const DEFAULTS = {
 export function loadConfig({ file, env = process.env, needWebhook = true } = {}) {
   const fromFile = file ? JSON.parse(fs.readFileSync(file, "utf8")) : {};
   const c = { ...DEFAULTS, ...fromFile, webhook: { ...DEFAULTS.webhook, ...(fromFile.webhook || {}) } };
+  c.relay = { ...DEFAULTS.relay, ...(fromFile.relay || {}) };
+  c.welcome = { ...DEFAULTS.welcome, ...(fromFile.welcome || {}) };
   if (fromFile.bot) c.bot = { ...fromFile.bot };
+  if (fromFile.lookup) c.lookup = { ...fromFile.lookup };
   if (env.VTR_PROFILE) c.profile = env.VTR_PROFILE;
   if (env.VTR_LOG_DIR) c.logDir = env.VTR_LOG_DIR;
   if (env.VTR_GUILD_IDS) c.guildIds = env.VTR_GUILD_IDS.split(",");
@@ -40,6 +46,8 @@ export function loadConfig({ file, env = process.env, needWebhook = true } = {})
   if (env.VTR_THREAD_ID) c.webhook.threadId = env.VTR_THREAD_ID;
   if (env.VTR_STATE_FILE) c.stateFile = env.VTR_STATE_FILE;
   if (env.VTR_BOT_TOKEN && c.bot) c.bot.token = env.VTR_BOT_TOKEN;
+  // Member lookup (names, bot or not) for join/leave lines and join notices. Optional.
+  if (needWebhook && c.lookup && !c.lookup.token) c.lookup.token = readBotToken(c.lookup);
   if (c.bot) {
     if (needWebhook && !c.bot.token) c.bot.token = readBotToken(c.bot);
     return finish(c, env);
@@ -70,7 +78,7 @@ function readBotToken(bot) {
     }
     return token;
   }
-  throw new Error("bot: set bot.tokenFile, bot.openclawConfig or VTR_BOT_TOKEN");
+  throw new Error("set tokenFile or openclawConfig (or VTR_BOT_TOKEN for bot)");
 }
 
 function expand(p) {

@@ -13,6 +13,8 @@ export class Relay {
     this.guildIds = toSet(options.guildIds);
     this.channelIds = toSet(options.channelIds);
     this.speakerNames = options.speakerNames || {};
+    this.relayKinds = { user: true, assistant: true, presence: true, ...(options.relay || {}) };
+    this.labels = new Map(); // userId -> last Discord display label seen in a turn line
     this.current = null; // { guildId, channelId }
     this.turns = []; // [{ at, userId, speaker }]
   }
@@ -32,11 +34,27 @@ export class Relay {
       case "turn": {
         this.current = { guildId: event.guildId, channelId: event.channelId };
         this.turns.push({ at: event.at, userId: event.userId, speaker: event.speaker });
+        if (event.speaker) this.labels.set(event.userId, event.speaker);
         if (this.turns.length > 50) this.turns.splice(0, this.turns.length - 50);
         return null;
       }
+      case "presence": {
+        // The line names its own room; it does not move the current room.
+        if (!this.allowedRoom(event.guildId, event.channelId)) return null;
+        return {
+          kind: "presence",
+          at: event.at,
+          joined: event.joined,
+          userId: event.userId,
+          label: this.speakerNames[event.userId] || this.labels.get(event.userId),
+          relay: this.relayKinds.presence !== false,
+          guildId: event.guildId,
+          channelId: event.channelId,
+        };
+      }
       case "user":
       case "assistant": {
+        if (this.relayKinds[event.type] === false) return null;
         if (!this.allowed() || !event.text) return null;
         const who = event.type === "assistant" ? { name: this.assistantName, guess: false } : this.speakerAt(event.at);
         return {
@@ -59,8 +77,12 @@ export class Relay {
   allowed() {
     // Before any join/turn line we cannot tell which room this is.
     if (!this.current) return this.guildIds.size === 0 && this.channelIds.size === 0;
-    if (this.guildIds.size && !this.guildIds.has(this.current.guildId)) return false;
-    if (this.channelIds.size && !this.channelIds.has(this.current.channelId)) return false;
+    return this.allowedRoom(this.current.guildId, this.current.channelId);
+  }
+
+  allowedRoom(guildId, channelId) {
+    if (this.guildIds.size && !this.guildIds.has(guildId)) return false;
+    if (this.channelIds.size && !this.channelIds.has(channelId)) return false;
     return true;
   }
 

@@ -5,11 +5,14 @@
 //   discord voice: realtime speaker turn opened guild=<g> channel=<c> user=<u> speaker=<label> owner=<bool>
 //   discord voice: realtime user transcript (<n> chars): <text>
 //   discord voice: realtime assistant transcript (<n> chars): <text>
+//   discord voice: participant joined|left event queued guild=<g> channel=<c> user=<u> ...
+//     (only while the agent is in the room; the agent itself is excluded, other bots are not)
 // Transcript text is whitespace-collapsed and cut at 500 chars ("..." suffix).
 // None of this is a public API; tests pin the formats seen in OpenClaw 2026.9.6.
 
 const JOINED = /^discord voice: joined guild=(\S+) channel=(\S+)(?: .*?\bagent=(\S+))?/;
 const TURN_OPENED = /^discord voice: realtime speaker turn opened guild=(\S+) channel=(\S+) user=(\S+) speaker=(.*?) owner=(\S+)/;
+const PRESENCE = /^discord voice: participant (joined|left) event queued guild=(\S+) channel=(\S+) user=(\S+)/;
 const TRANSCRIPT = /^discord voice: realtime (user|assistant) transcript \((\d+) chars\): ([\s\S]*)$/;
 
 export function parseLine(line) {
@@ -32,6 +35,10 @@ export function parseLine(line) {
     const truncated = length > 500 && text.endsWith("...") && text.length - 3 >= 499;
     if (truncated) text = text.slice(0, -3);
     return { type: m[1], at, text, length, truncated };
+  }
+  m = PRESENCE.exec(message);
+  if (m) {
+    return { type: "presence", at, joined: m[1] === "joined", guildId: m[2], channelId: m[3], userId: m[4] };
   }
   m = TURN_OPENED.exec(message);
   if (m) {

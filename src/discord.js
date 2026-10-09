@@ -8,8 +8,8 @@ export function webhookSender({ url, threadId, username, avatarUrl, fetchImpl = 
   const target = new URL(url);
   target.searchParams.set("wait", "true");
   if (threadId) target.searchParams.set("thread_id", threadId);
-  return async function send(content) {
-    const body = { content, allowed_mentions: { parse: [] } };
+  return async function send(content, _dest, { mentions } = {}) {
+    const body = { content, allowed_mentions: allowedMentions(mentions) };
     if (username) body.username = username;
     if (avatarUrl) body.avatar_url = avatarUrl;
     const res = await fetchImpl(target, {
@@ -30,7 +30,7 @@ export function botSender({ token, channelId, fetchImpl = fetch }) {
   if (!token) throw new Error("bot token is required");
   if (!channelId) throw new Error("bot.channelId is required");
   const target = `https://discord.com/api/v10/channels/${channelId}/messages`;
-  return async function send(content) {
+  return async function send(content, _dest, { mentions } = {}) {
     const res = await fetchImpl(target, {
       method: "POST",
       headers: {
@@ -38,10 +38,44 @@ export function botSender({ token, channelId, fetchImpl = fetch }) {
         authorization: `Bot ${token}`,
         "user-agent": "DiscordBot (https://github.com/yousan/openclaw-voice-transcript-relay, 0.1)",
       },
-      body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
+      body: JSON.stringify({ content, allowed_mentions: allowedMentions(mentions) }),
     });
     if (res.ok) return messageId(res);
     throw await toError(res);
+  };
+}
+
+// Nothing pings except the users a message is meant to notify.
+function allowedMentions(mentions) {
+  return mentions?.length ? { parse: [], users: mentions.slice(0, 100) } : { parse: [] };
+}
+
+/**
+ * Look up a guild member: display name and whether it is a bot. Cached; null
+ * when the lookup fails (unknown users are never announced as humans).
+ */
+export function memberLookup({ token, fetchImpl = fetch, ttlMs = 3_600_000 }) {
+  const cache = new Map();
+  return async function lookup(guildId, userId) {
+    const key = `${guildId}/${userId}`;
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.at < ttlMs) return hit.value;
+    let value = null;
+    try {
+      const res = await fetchImpl(`https://discord.com/api/v10/guilds/${guildId}/members/${userId}`, {
+        headers: {
+          authorization: `Bot ${token}`,
+          "user-agent": "DiscordBot (https://github.com/yousan/openclaw-voice-transcript-relay, 0.2)",
+        },
+      });
+      if (res.ok) {
+        const m = await res.json();
+        value = { name: m.nick || m.user?.global_name || m.user?.username, bot: Boolean(m.user?.bot) };
+      }
+    } catch {}
+    // Remember failures only briefly so a network blip does not hide a person for an hour.
+    cache.set(key, { at: value ? Date.now() : Date.now() - ttlMs + 60_000, value });
+    return value;
   };
 }
 
