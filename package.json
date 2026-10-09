@@ -1,7 +1,7 @@
 {
-  "name": "openclaw-voice-transcript-relay",
+  "name": "@yousan/openclaw-voice-transcript-relay",
   "version": "0.1.0",
-  "description": "Post what was said in an OpenClaw Discord voice channel — the humans and the bot — into a text channel or thread as it is said. No model calls.",
+  "description": "Posts what is said in a Discord voice channel — the humans and the agent — into a text channel as it is said, by default the voice channel's own chat. No model calls.",
   "type": "module",
   "license": "MIT",
   "author": "yousan",
@@ -11,6 +11,7 @@
   },
   "keywords": [
     "openclaw",
+    "openclaw-plugin",
     "discord",
     "voice",
     "transcript",
@@ -23,12 +24,41 @@
   "files": [
     "bin",
     "src",
-    "examples"
+    "openclaw",
+    "openclaw.plugin.json",
+    "examples",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "test": "node --test test/*.test.js"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.9.6"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "openclaw": {
+    "extensions": [
+      "./openclaw/index.js"
+    ],
+    "compat": {
+      "pluginApi": ">=2026.9.6",
+      "minGatewayVersion": "2026.9.6"
+    },
+    "build": {
+      "openclawVersion": "2026.9.6",
+      "pluginSdkVersion": "2026.9.6"
+    },
+    "install": {
+      "npmSpec": "@yousan/openclaw-voice-transcript-relay",
+      "minHostVersion": ">=2026.9.6"
+    }
   }
 }

@@ -1,5 +1,5 @@
 // Follow OpenClaw's rolling gateway log: one file per local day, rotated by
-// size (the active file is renamed to .1 and a fresh one is created).
+// size (the active file becomes <name>.1.log and a fresh one is created).
 // Keeps the open descriptor so lines written just before a rotation or a
 // date change are still read to the end before switching.
 
@@ -119,10 +119,13 @@ function statOrNull(file) {
   }
 }
 
+// OpenClaw names archives openclaw-<...>-YYYY-MM-DD.1.log; also accept .log.1.
 function findByInode(file, ino) {
   for (let i = 1; i <= 5; i++) {
-    const st = statOrNull(`${file}.${i}`);
-    if (st && st.ino === ino) return `${file}.${i}`;
+    for (const candidate of [file.replace(/\.log$/, `.${i}.log`), `${file}.${i}`]) {
+      const st = statOrNull(candidate);
+      if (st && st.ino === ino) return candidate;
+    }
   }
   return null;
 }
