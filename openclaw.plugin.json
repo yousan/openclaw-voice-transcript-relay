@@ -2,7 +2,7 @@
   "id": "voice-transcript-relay",
   "name": "Voice Transcript Relay",
   "description": "Posts what is said in a Discord voice channel — the humans and the agent — into a text channel as it is said, by default the voice channel's own chat. No model calls.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "categories": [
     "voice"
   ],
@@ -59,6 +59,10 @@
     "sessionHeader": {
       "label": "Join notice",
       "help": "Posted when the agent joins a room. {channelId} and {guildId} are replaced. false to turn off."
+    },
+    "sessionFooter": {
+      "label": "Leave notice",
+      "help": "Posted when the agent leaves the room. {channelId} and {guildId} are replaced. false to turn off."
     },
     "showTime": {
       "label": "Show time",
@@ -232,6 +236,16 @@
         "items": {
           "type": "string"
         }
+      },
+      "sessionFooter": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "const": false
+          }
+        ]
       }
     }
   }

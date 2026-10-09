@@ -6,7 +6,7 @@ import path from "node:path";
 import { parseLine } from "./parse.js";
 import { Relay } from "./relay.js";
 import { LogFollower, logFileFor } from "./tail.js";
-import { Outbox, formatLine, formatPresence, formatSession, formatWelcome } from "./outbox.js";
+import { Outbox, formatLine, formatPresence, formatSession, formatSessionEnd, formatWelcome } from "./outbox.js";
 
 /**
  * @param {object} o
@@ -110,6 +110,12 @@ function itemHandler(config, { lookup, log }) {
       if (item.changed) welcomed = new Set();
       if (config.sessionHeader === false || !item.changed) return false;
       outbox.add(formatSession(item, config), pos, dest);
+      return true;
+    }
+    if (item.kind === "session-end") {
+      welcomed = new Set();
+      if (config.sessionFooter === false) return false;
+      outbox.add(formatSessionEnd(item, config), pos, dest);
       return true;
     }
     if (item.kind === "line") {
