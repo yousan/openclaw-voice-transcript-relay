@@ -41,11 +41,11 @@ OpenClaw Gateway ──writes──▶ /tmp/openclaw/openclaw-<profile>-YYYY-MM-
 - **No model calls.** Nothing is summarised or rewritten; there is no agent turn per utterance.
 - **Nothing lost on restart.** The read position (file, inode, byte offset) is saved after each successful post. On restart it resumes there, including when the log was rotated in between. Rate limits (429) and network errors are retried in order.
 - **Delay.** About the poll interval (0.5 s) plus Discord. With `flushMs` it waits that long and posts the collected lines as one message (recommended: a few seconds — Discord allows about 30 webhook messages per minute per channel).
-- **The agent does not answer its own transcript.** Webhook messages are bot messages, which OpenClaw ignores unless `channels.discord.allowBots` is on. Still, prefer a channel or thread the agent does not listen in.
+- **The agent does not answer its own transcript.** Webhook messages are bot messages, which OpenClaw ignores unless `channels.discord.allowBots` is on; with `bot` set to the agent's own bot, the messages are its own and are ignored too. Still, prefer a channel or thread the agent does not listen in.
 
 ## Install
 
-You need Node 20+ on the Gateway host, and a Discord webhook for the channel you want the transcript in (Channel settings → Integrations → Webhooks → New Webhook → Copy URL). To post into a thread, use the parent channel's webhook and set `threadId`.
+You need Node 20+ on the Gateway host, and a Discord webhook for the channel you want the transcript in (Channel settings → Integrations → Webhooks → New Webhook → Copy URL). To post into a thread, use the parent channel's webhook and set `threadId`. A voice channel's own chat works too. If you cannot create a webhook, set `bot` instead (see Configuration).
 
 ```sh
 git clone https://github.com/yousan/openclaw-voice-transcript-relay
@@ -82,9 +82,11 @@ A systemd user unit is in [`examples/voice-transcript-relay@.service`](examples/
 | `webhook.url` / `webhook.urlFile` | | The webhook. Keep it out of the JSON: use `urlFile` or `VTR_WEBHOOK_URL` |
 | `webhook.threadId` | | Post into this thread of the webhook's channel |
 | `webhook.username`, `webhook.avatarUrl` | | How the poster appears |
+| `bot.channelId` | | Post as a bot into this channel instead of a webhook (when you cannot create a webhook there). A voice channel's id posts into its own chat |
+| `bot.tokenFile` / `bot.openclawConfig` | | The bot token: a file, or the OpenClaw config that already has it (`channels.discord.token`, plain string only). Or `VTR_BOT_TOKEN` |
 | `stateFile` | `~/.local/state/openclaw-voice-transcript-relay/<profile>.json` | Saved read position |
 
-Environment variables override the file: `VTR_CONFIG`, `VTR_PROFILE`, `VTR_LOG_DIR`, `VTR_GUILD_IDS`, `VTR_CHANNEL_IDS`, `VTR_ASSISTANT_NAME`, `VTR_FLUSH_MS`, `VTR_WEBHOOK_URL`, `VTR_THREAD_ID`, `VTR_STATE_FILE`.
+Environment variables override the file: `VTR_CONFIG`, `VTR_PROFILE`, `VTR_LOG_DIR`, `VTR_GUILD_IDS`, `VTR_CHANNEL_IDS`, `VTR_ASSISTANT_NAME`, `VTR_FLUSH_MS`, `VTR_WEBHOOK_URL`, `VTR_THREAD_ID`, `VTR_BOT_TOKEN`, `VTR_STATE_FILE`.
 
 ## Before you use it with other people
 
@@ -110,6 +112,7 @@ node bin/voice-transcript-relay.js --replay path/to/openclaw-<profile>-YYYY-MM-D
 
 OpenClaw の Discord ボイス（realtime モード）で bot と話した内容を、**話しながら**テキストチャンネルかスレッドに全文で流します。人の発話も bot の返事も、名前付きで流れます。モデルは呼びません（追加費用なし）。
 
+- **流す先**: webhook（スレッド・VC のチャットも可）。webhook を作れない場所は `bot` 設定で bot として投稿できます（トークンは `bot.tokenFile` か、OpenClaw の設定ファイルを `bot.openclawConfig` で参照）。
 - **仕組み**: Gateway のログ（`/tmp/openclaw/openclaw-<profile>-YYYY-MM-DD.log`）に出る `realtime user transcript` / `realtime assistant transcript` の行を追いかけ、Discord の webhook に投稿します。Gateway の再起動や設定変更は要りません。
 - **本体の transcripts との違い**: transcripts は realtime モードでは人の発話しか保存せず、Discord への投稿機能もありません。
 - **話者名**: bot は `assistantName`、人は直前の `speaker turn opened` 行の表示名。同時に複数人が話し始めたときは `名前?` と推定であることを示します。

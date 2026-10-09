@@ -18,16 +18,18 @@ const DEFAULTS = {
   pollMs: 500,
   stateFile: undefined,
   webhook: {},
+  bot: undefined,
 };
 
 /**
  * Load config: JSON file, then environment variables on top.
- * Secrets (the webhook URL) should come from the environment or a file
- * referenced by `webhook.urlFile`, not from the JSON.
+ * Secrets (the webhook URL, a bot token) should come from the environment or a
+ * file (`webhook.urlFile`, `bot.tokenFile`, `bot.openclawConfig`), not the JSON.
  */
 export function loadConfig({ file, env = process.env, needWebhook = true } = {}) {
   const fromFile = file ? JSON.parse(fs.readFileSync(file, "utf8")) : {};
   const c = { ...DEFAULTS, ...fromFile, webhook: { ...DEFAULTS.webhook, ...(fromFile.webhook || {}) } };
+  if (fromFile.bot) c.bot = { ...fromFile.bot };
   if (env.VTR_PROFILE) c.profile = env.VTR_PROFILE;
   if (env.VTR_LOG_DIR) c.logDir = env.VTR_LOG_DIR;
   if (env.VTR_GUILD_IDS) c.guildIds = env.VTR_GUILD_IDS.split(",");
@@ -37,10 +39,19 @@ export function loadConfig({ file, env = process.env, needWebhook = true } = {})
   if (env.VTR_WEBHOOK_URL) c.webhook.url = env.VTR_WEBHOOK_URL;
   if (env.VTR_THREAD_ID) c.webhook.threadId = env.VTR_THREAD_ID;
   if (env.VTR_STATE_FILE) c.stateFile = env.VTR_STATE_FILE;
+  if (env.VTR_BOT_TOKEN && c.bot) c.bot.token = env.VTR_BOT_TOKEN;
+  if (c.bot) {
+    if (needWebhook && !c.bot.token) c.bot.token = readBotToken(c.bot);
+    return finish(c, env);
+  }
   if (needWebhook && !c.webhook.url) {
     if (!c.webhook.urlFile) throw new Error("no webhook: set webhook.urlFile or VTR_WEBHOOK_URL");
     c.webhook.url = fs.readFileSync(expand(c.webhook.urlFile), "utf8").trim();
   }
+  return finish(c, env);
+}
+
+function finish(c, env) {
   c.logDir = expand(c.logDir);
   if (!c.stateFile) {
     const base = env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state");
@@ -48,6 +59,18 @@ export function loadConfig({ file, env = process.env, needWebhook = true } = {})
   }
   c.stateFile = expand(c.stateFile);
   return c;
+}
+
+function readBotToken(bot) {
+  if (bot.tokenFile) return fs.readFileSync(expand(bot.tokenFile), "utf8").trim();
+  if (bot.openclawConfig) {
+    const token = JSON.parse(fs.readFileSync(expand(bot.openclawConfig), "utf8"))?.channels?.discord?.token;
+    if (typeof token !== "string" || !token) {
+      throw new Error("bot.openclawConfig: channels.discord.token is not a plain string; use bot.tokenFile or VTR_BOT_TOKEN");
+    }
+    return token;
+  }
+  throw new Error("bot: set bot.tokenFile, bot.openclawConfig or VTR_BOT_TOKEN");
 }
 
 function expand(p) {
