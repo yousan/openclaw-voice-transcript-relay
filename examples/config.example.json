@@ -1,0 +1,16 @@
+{
+  "profile": "work",
+  "logDir": "/tmp/openclaw",
+  "guildIds": ["123456789012345678"],
+  "channelIds": ["234567890123456789"],
+  "assistantName": "Assistant",
+  "speakerNames": { "345678901234567890": "Alice" },
+  "flushMs": 5000,
+  "showTime": false,
+  "sessionHeader": "🎙️ <#{channelId}>",
+  "webhook": {
+    "urlFile": "~/.config/openclaw-voice-transcript-relay/work.webhook",
+    "threadId": "456789012345678901",
+    "username": "Voice transcript"
+  }
+}

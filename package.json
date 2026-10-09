@@ -1,0 +1,34 @@
+{
+  "name": "openclaw-voice-transcript-relay",
+  "version": "0.1.0",
+  "description": "Post what was said in an OpenClaw Discord voice channel — the humans and the bot — into a text channel or thread as it is said. No model calls.",
+  "type": "module",
+  "license": "MIT",
+  "author": "yousan",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yousan/openclaw-voice-transcript-relay.git"
+  },
+  "keywords": [
+    "openclaw",
+    "discord",
+    "voice",
+    "transcript",
+    "realtime",
+    "ai-agents"
+  ],
+  "bin": {
+    "voice-transcript-relay": "bin/voice-transcript-relay.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "examples"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}

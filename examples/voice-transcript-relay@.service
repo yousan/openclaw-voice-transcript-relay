@@ -1,0 +1,16 @@
+# systemd user unit. One instance per OpenClaw profile:
+#   cp voice-transcript-relay@.service ~/.config/systemd/user/
+#   systemctl --user enable --now voice-transcript-relay@work
+# Reads ~/.config/openclaw-voice-transcript-relay/<profile>.json
+[Unit]
+Description=OpenClaw voice transcript relay (%i)
+After=network-online.target
+
+[Service]
+# Point these at your Node and your clone of this repository.
+ExecStart=/usr/bin/env node %h/src/openclaw-voice-transcript-relay/bin/voice-transcript-relay.js --config %h/.config/openclaw-voice-transcript-relay/%i.json
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
