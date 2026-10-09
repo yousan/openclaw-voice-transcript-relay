@@ -7,6 +7,7 @@ import path from "node:path";
 export const DEFAULTS = {
   guildIds: [],
   channelIds: [],
+  allChannels: false,
   excludeGuildIds: [],
   excludeChannelIds: [],
   assistantName: "assistant",

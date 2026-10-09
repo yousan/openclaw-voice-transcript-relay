@@ -19,6 +19,7 @@ import { Outbox, formatLine, formatPresence, formatSession, formatSessionEnd, fo
  */
 export function startRelay({ config, send, log = consoleLog, persist = true, fromStart = false, lookup }) {
   const relay = new Relay(config);
+  if (!relay.enabled) log.warn("nothing to relay: set channelIds (or guildIds), or allChannels: true");
   const handle = itemHandler(config, { lookup, log });
   const state = persist ? readState(config.stateFile) : null;
   let latestPos = null;

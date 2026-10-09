@@ -6,7 +6,7 @@ import { formatLine, chunk } from "../src/outbox.js";
 import { G, C, U1, U2, at, joined, turn, said, line } from "./fixtures.js";
 
 function run(lines, options = {}) {
-  const relay = new Relay({ assistantName: "Bot", ...options });
+  const relay = new Relay({ assistantName: "Bot", allChannels: true, ...options });
   return lines.map((l) => relay.push(parseLine(l))).filter(Boolean);
 }
 
@@ -83,13 +83,23 @@ test("chunk keeps messages under the Discord limit", () => {
   assert.equal(parts.join("").replace(/\n/g, "").length, 7500);
 });
 
-test("excludeChannelIds skips a room; the default still relays every room", () => {
+test("excludeChannelIds skips a room, also with allChannels", () => {
   const other = "999999999999999999";
   const lines = (c) => [joined(G, c), turn(U1, "Alice", G, c), said("user", "hi")];
-  assert.equal(run(lines(C)).at(-1).text, "hi"); // default: everything
+  assert.equal(run(lines(C)).at(-1).text, "hi"); // allChannels: everything
   assert.equal(run(lines(C), { excludeChannelIds: [C] }).length, 0);
   assert.equal(run(lines(other), { excludeChannelIds: [C] }).at(-1).text, "hi");
   // Exclusion wins over the allowlist.
   assert.equal(run(lines(C), { channelIds: [C], excludeChannelIds: [C] }).length, 0);
   assert.equal(run(lines(C), { excludeGuildIds: [G] }).length, 0);
+});
+
+test("off by default: nothing is relayed until rooms are chosen", () => {
+  const lines = [joined(), turn(U1, "Alice"), said("user", "hi"), said("assistant", "yo")];
+  assert.equal(run(lines, { allChannels: undefined }).length, 0);
+  assert.equal(run(lines, { allChannels: false }).length, 0);
+  assert.equal(run(lines, { allChannels: false, channelIds: [C] }).at(-1).text, "yo");
+  assert.equal(run(lines, { allChannels: false, guildIds: [G] }).at(-1).text, "yo");
+  assert.equal(new Relay({}).enabled, false);
+  assert.equal(new Relay({ allChannels: true }).enabled, true);
 });

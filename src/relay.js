@@ -12,6 +12,8 @@ export class Relay {
     this.speakerWindowMs = options.speakerWindowMs ?? 30_000;
     this.guildIds = toSet(options.guildIds);
     this.channelIds = toSet(options.channelIds);
+    // Off by default: with no allowlist, relay every room only when asked to.
+    this.allChannels = options.allChannels === true;
     this.excludeGuildIds = toSet(options.excludeGuildIds);
     this.excludeChannelIds = toSet(options.excludeChannelIds);
     this.speakerNames = options.speakerNames || {};
@@ -89,14 +91,20 @@ export class Relay {
     }
   }
 
+  /** Is any room configured to be relayed at all? */
+  get enabled() {
+    return this.allChannels || this.guildIds.size > 0 || this.channelIds.size > 0;
+  }
+
   allowed() {
     // Before any join/turn line we cannot tell which room this is.
-    if (!this.current) return this.guildIds.size === 0 && this.channelIds.size === 0;
+    if (!this.current) return this.allChannels && this.guildIds.size === 0 && this.channelIds.size === 0;
     return this.allowedRoom(this.current.guildId, this.current.channelId);
   }
 
-  // Allowlist first (empty = every room), then the denylist.
+  // Denylist first, then the allowlist (empty = every room only with allChannels).
   allowedRoom(guildId, channelId) {
+    if (!this.enabled) return false;
     if (this.excludeGuildIds.has(guildId) || this.excludeChannelIds.has(channelId)) return false;
     if (this.guildIds.size && !this.guildIds.has(guildId)) return false;
     if (this.channelIds.size && !this.channelIds.has(channelId)) return false;

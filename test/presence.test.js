@@ -19,7 +19,7 @@ async function replay(lines, config = {}, withLookup = lookup) {
   fs.writeFileSync(file, lines.join("\n") + "\n");
   const sent = [];
   await replayFile({
-    config: { assistantName: "Bot", flushMs: 0, sessionHeader: false, ...config },
+    config: { assistantName: "Bot", flushMs: 0, sessionHeader: false, allChannels: true, ...config },
     file,
     lookup: withLookup ?? undefined,
     send: async (content, dest, opts) => void sent.push({ content, mentions: opts?.mentions }),
@@ -89,7 +89,7 @@ test("webhook allows exactly the mentioned users to be notified", async () => {
 });
 
 test("Relay keeps presence in its own room without moving the current room", () => {
-  const r = new Relay({});
+  const r = new Relay({ allChannels: true });
   r.push(parseLine(joined()));
   const item = r.push(parseLine(presence("joined", U1, G, "888888888888888888")));
   assert.equal(item.channelId, "888888888888888888");
@@ -116,4 +116,9 @@ test("join notices reset after the agent leaves", async () => {
   const { sessionEnded } = await import("./fixtures.js");
   const sent = await replay([joined(), presence("joined", U1), sessionEnded(), joined(), presence("joined", U1)], { sessionFooter: false });
   assert.equal(sent.filter((s) => s.mentions).length, 2);
+});
+
+test("off by default: no join lines or notices without chosen rooms", async () => {
+  const sent = await replay([joined(), presence("joined", U2), said("assistant", "hi")], { allChannels: false });
+  assert.deepEqual(sent, []);
 });
