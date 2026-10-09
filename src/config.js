@@ -25,7 +25,7 @@ const DEFAULTS = {
  * Secrets (the webhook URL) should come from the environment or a file
  * referenced by `webhook.urlFile`, not from the JSON.
  */
-export function loadConfig({ file, env = process.env } = {}) {
+export function loadConfig({ file, env = process.env, needWebhook = true } = {}) {
   const fromFile = file ? JSON.parse(fs.readFileSync(file, "utf8")) : {};
   const c = { ...DEFAULTS, ...fromFile, webhook: { ...DEFAULTS.webhook, ...(fromFile.webhook || {}) } };
   if (env.VTR_PROFILE) c.profile = env.VTR_PROFILE;
@@ -37,7 +37,10 @@ export function loadConfig({ file, env = process.env } = {}) {
   if (env.VTR_WEBHOOK_URL) c.webhook.url = env.VTR_WEBHOOK_URL;
   if (env.VTR_THREAD_ID) c.webhook.threadId = env.VTR_THREAD_ID;
   if (env.VTR_STATE_FILE) c.stateFile = env.VTR_STATE_FILE;
-  if (!c.webhook.url && c.webhook.urlFile) c.webhook.url = fs.readFileSync(expand(c.webhook.urlFile), "utf8").trim();
+  if (needWebhook && !c.webhook.url) {
+    if (!c.webhook.urlFile) throw new Error("no webhook: set webhook.urlFile or VTR_WEBHOOK_URL");
+    c.webhook.url = fs.readFileSync(expand(c.webhook.urlFile), "utf8").trim();
+  }
   c.logDir = expand(c.logDir);
   if (!c.stateFile) {
     const base = env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state");
