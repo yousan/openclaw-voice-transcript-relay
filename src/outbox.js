@@ -39,7 +39,8 @@ export class Outbox {
    * @param {number} [o.flushMs]  0 = send each line as it arrives
    * @param {(pos: any) => void} [o.onDelivered]  called with the log position after a successful send
    */
-  constructor({ send, flushMs = 0, onDelivered = () => {}, onError = () => {}, retryMs = 5000 }) {
+  constructor({ send, flushMs = 0, onDelivered = () => {}, onError = () => {}, onSent = () => {}, retryMs = 5000 }) {
+    this.onSent = onSent;
     this.sendFn = send;
     this.flushMs = flushMs;
     this.onDelivered = onDelivered;
@@ -75,7 +76,7 @@ export class Outbox {
       for (const content of messages) {
         for (;;) {
           try {
-            await this.sendFn(content);
+            this.onSent(await this.sendFn(content), content);
             break;
           } catch (error) {
             this.onError(error);
