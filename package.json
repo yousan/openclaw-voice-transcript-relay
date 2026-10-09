@@ -1,6 +1,6 @@
 {
   "name": "@yousan/openclaw-voice-transcript-relay",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Posts what is said in a Discord voice channel — the humans and the agent — into a text channel as it is said, by default the voice channel's own chat. No model calls.",
   "type": "module",
   "license": "MIT",

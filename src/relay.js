@@ -12,6 +12,8 @@ export class Relay {
     this.speakerWindowMs = options.speakerWindowMs ?? 30_000;
     this.guildIds = toSet(options.guildIds);
     this.channelIds = toSet(options.channelIds);
+    this.excludeGuildIds = toSet(options.excludeGuildIds);
+    this.excludeChannelIds = toSet(options.excludeChannelIds);
     this.speakerNames = options.speakerNames || {};
     this.relayKinds = { user: true, assistant: true, presence: true, ...(options.relay || {}) };
     this.labels = new Map(); // userId -> last Discord display label seen in a turn line
@@ -80,7 +82,9 @@ export class Relay {
     return this.allowedRoom(this.current.guildId, this.current.channelId);
   }
 
+  // Allowlist first (empty = every room), then the denylist.
   allowedRoom(guildId, channelId) {
+    if (this.excludeGuildIds.has(guildId) || this.excludeChannelIds.has(channelId)) return false;
     if (this.guildIds.size && !this.guildIds.has(guildId)) return false;
     if (this.channelIds.size && !this.channelIds.has(channelId)) return false;
     return true;

@@ -2,7 +2,7 @@
   "id": "voice-transcript-relay",
   "name": "Voice Transcript Relay",
   "description": "Posts what is said in a Discord voice channel — the humans and the agent — into a text channel as it is said, by default the voice channel's own chat. No model calls.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "categories": [
     "voice"
   ],
@@ -12,11 +12,20 @@
   "uiHints": {
     "channelIds": {
       "label": "Voice channels",
-      "help": "Only relay these voice channels (ids). Empty = every room the agent joins."
+      "help": "Only relay these voice channels (ids). Empty = every room the agent joins (the default). Use excludeChannelIds to skip a few instead."
+    },
+    "excludeChannelIds": {
+      "label": "Voice channels to skip",
+      "help": "Never relay these voice channels (ids), even if channelIds is empty or lists them. Default: none."
     },
     "guildIds": {
       "label": "Servers",
       "help": "Only relay voice channels in these servers (ids).",
+      "advanced": true
+    },
+    "excludeGuildIds": {
+      "label": "Servers to skip",
+      "help": "Never relay voice channels in these servers (ids).",
       "advanced": true
     },
     "assistantName": {
@@ -211,6 +220,18 @@
       },
       "leftText": {
         "type": "string"
+      },
+      "excludeChannelIds": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "excludeGuildIds": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
       }
     }
   }

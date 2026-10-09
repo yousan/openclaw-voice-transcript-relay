@@ -82,3 +82,14 @@ test("chunk keeps messages under the Discord limit", () => {
   assert.ok(parts.every((p) => p.length <= 2000));
   assert.equal(parts.join("").replace(/\n/g, "").length, 7500);
 });
+
+test("excludeChannelIds skips a room; the default still relays every room", () => {
+  const other = "999999999999999999";
+  const lines = (c) => [joined(G, c), turn(U1, "Alice", G, c), said("user", "hi")];
+  assert.equal(run(lines(C)).at(-1).text, "hi"); // default: everything
+  assert.equal(run(lines(C), { excludeChannelIds: [C] }).length, 0);
+  assert.equal(run(lines(other), { excludeChannelIds: [C] }).at(-1).text, "hi");
+  // Exclusion wins over the allowlist.
+  assert.equal(run(lines(C), { channelIds: [C], excludeChannelIds: [C] }).length, 0);
+  assert.equal(run(lines(C), { excludeGuildIds: [G] }).length, 0);
+});
