@@ -10,7 +10,7 @@ import { parseLine } from "../src/parse.js";
 import { Relay } from "../src/relay.js";
 import { LogFollower, logFileFor } from "../src/tail.js";
 import { Outbox, formatLine, formatSession } from "../src/outbox.js";
-import { webhookSender } from "../src/discord.js";
+import { botSender, webhookSender } from "../src/discord.js";
 
 const { values: args } = parseArgs({
   options: {
@@ -38,7 +38,9 @@ const log = (...a) => console.error(new Date().toISOString(), ...a);
 
 const send = dryRun
   ? async (content) => console.log(content + "\n---")
-  : webhookSender(config.webhook);
+  : config.bot
+    ? botSender(config.bot)
+    : webhookSender(config.webhook);
 
 const state = dryRun ? null : readState(config.stateFile);
 const outbox = new Outbox({

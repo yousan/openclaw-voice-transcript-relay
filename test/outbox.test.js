@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Outbox } from "../src/outbox.js";
-import { webhookSender } from "../src/discord.js";
+import { botSender, webhookSender } from "../src/discord.js";
 
 test("flushMs=0 sends each line in order and reports the position", async () => {
   const sent = [];
@@ -58,4 +58,17 @@ test("webhook sender turns 429 into a retry delay", async () => {
     fetchImpl: async () => ({ ok: false, status: 429, headers: new Headers(), text: async () => '{"retry_after":1.5}' }),
   });
   await assert.rejects(send("x"), (e) => e.retryAfterMs === 1600);
+});
+
+test("bot sender posts to the channel with the bot token and mentions disabled", async () => {
+  let req;
+  const send = botSender({
+    token: "dummy-token",
+    channelId: "42",
+    fetchImpl: async (url, init) => ((req = { url: String(url), init, body: JSON.parse(init.body) }), { ok: true }),
+  });
+  await send("hi");
+  assert.equal(req.url, "https://discord.com/api/v10/channels/42/messages");
+  assert.equal(req.init.headers.authorization, "Bot dummy-token");
+  assert.deepEqual(req.body.allowed_mentions, { parse: [] });
 });
