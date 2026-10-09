@@ -15,6 +15,8 @@ export const DEFAULTS = {
   sessionHeader: "🎙️ This voice chat is transcribed here.",
   truncatedMark: " …",
   pollMs: 500,
+  relay: { user: true, assistant: true, presence: true },
+  welcome: { enabled: true },
 };
 
 /**
@@ -22,7 +24,12 @@ export const DEFAULTS = {
  * @param {{env?: object, stateDir: string, logging?: {file?: string}}} host
  */
 export function resolvePluginConfig(pc = {}, { env = process.env, stateDir, logging } = {}) {
-  const c = { ...DEFAULTS, ...pc };
+  const c = {
+    ...DEFAULTS,
+    ...pc,
+    relay: { ...DEFAULTS.relay, ...(pc.relay || {}) },
+    welcome: { ...DEFAULTS.welcome, ...(pc.welcome || {}) },
+  };
   c.profile = pc.profile ?? env.OPENCLAW_PROFILE ?? "";
   if (pc.logFile) c.logFile = expand(pc.logFile);
   else if (logging?.file) c.logFile = expand(logging.file);

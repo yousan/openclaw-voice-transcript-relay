@@ -6,7 +6,7 @@ import path from "node:path";
 import { parseLine } from "./parse.js";
 import { Relay } from "./relay.js";
 import { LogFollower, logFileFor } from "./tail.js";
-import { Outbox, formatLine, formatSession } from "./outbox.js";
+import { Outbox, formatLine, formatPresence, formatSession, formatWelcome } from "./outbox.js";
 
 /**
  * @param {object} o
@@ -15,9 +15,11 @@ import { Outbox, formatLine, formatSession } from "./outbox.js";
  * @param {{info: Function, warn: Function}} [o.log]
  * @param {boolean} [o.persist]    save the read position (false for dry runs)
  * @param {boolean} [o.fromStart]
+ * @param {(guildId: string, userId: string) => Promise<{name?: string, bot: boolean}|null>} [o.lookup]
  */
-export function startRelay({ config, send, log = consoleLog, persist = true, fromStart = false }) {
+export function startRelay({ config, send, log = consoleLog, persist = true, fromStart = false, lookup }) {
   const relay = new Relay(config);
+  const handle = itemHandler(config, { lookup, log });
   const state = persist ? readState(config.stateFile) : null;
   let latestPos = null;
   let saveTimer = null;
@@ -48,14 +50,7 @@ export function startRelay({ config, send, log = consoleLog, persist = true, fro
   });
 
   function onLine(line, pos) {
-    const item = relay.push(parseLine(line));
-    if (!item) return outbox.advance(pos);
-    const dest = { guildId: item.guildId, channelId: item.channelId };
-    if (item.kind === "session") {
-      if (config.sessionHeader === false || !item.changed) return outbox.advance(pos);
-      return outbox.add(formatSession(item, config), pos, dest);
-    }
-    outbox.add(formatLine(item, config), pos, dest);
+    if (!handle(relay.push(parseLine(line)), pos, outbox)) outbox.advance(pos);
   }
 
   const resolvePath = config.logFile ? () => config.logFile : () => logFileFor(config.logDir, config.profile);
@@ -89,26 +84,57 @@ export function startRelay({ config, send, log = consoleLog, persist = true, fro
 }
 
 /** Read one log file from the start and deliver everything, then return. */
-export async function replayFile({ config, file, send }) {
+export async function replayFile({ config, file, send, lookup }) {
   const relay = new Relay(config);
+  const handle = itemHandler(config, { lookup, log: { info() {}, warn() {} } });
   const outbox = new Outbox({ send, flushMs: config.flushMs });
   const follower = new LogFollower({
     resolvePath: () => file,
     fromStart: true,
-    onLine: (line, pos) => {
-      const item = relay.push(parseLine(line));
-      if (!item) return;
-      const dest = { guildId: item.guildId, channelId: item.channelId };
-      if (item.kind === "session") {
-        if (config.sessionHeader !== false && item.changed) outbox.add(formatSession(item, config), pos, dest);
-        return;
-      }
-      outbox.add(formatLine(item, config), pos, dest);
-    },
+    onLine: (line, pos) => handle(relay.push(parseLine(line)), pos, outbox),
   });
   follower.poll();
   follower.close();
   await outbox.flush();
+}
+
+/** Queue what one relay item turns into. Returns false when nothing was queued. */
+function itemHandler(config, { lookup, log }) {
+  const welcomeOn = config.welcome?.enabled !== false;
+  let welcomed = new Set(); // user ids welcomed since the agent joined this room
+  let warned = false;
+  return function handle(item, pos, outbox) {
+    if (!item) return false;
+    const dest = { guildId: item.guildId, channelId: item.channelId };
+    if (item.kind === "session") {
+      if (item.changed) welcomed = new Set();
+      if (config.sessionHeader === false || !item.changed) return false;
+      outbox.add(formatSession(item, config), pos, dest);
+      return true;
+    }
+    if (item.kind === "line") {
+      outbox.add(formatLine(item, config), pos, dest);
+      return true;
+    }
+    if (item.kind !== "presence") return false;
+    const who = lookup ? lookup(item.guildId, item.userId) : Promise.resolve(null);
+    let queued = false;
+    if (item.relay) {
+      outbox.add(who.then((u) => formatPresence(item, u, config)), pos, dest);
+      queued = true;
+    }
+    if (item.joined && welcomeOn && !welcomed.has(item.userId)) {
+      if (!lookup && !warned) {
+        warned = true;
+        log.warn("join notices need a Discord lookup to tell people from bots; none is configured, so none are sent");
+      }
+      welcomed.add(item.userId);
+      // Only people: a bot, or someone we could not look up, gets no notice.
+      outbox.add(who.then((u) => (u && !u.bot ? formatWelcome(item, config) : null)), pos, dest, { mentions: [item.userId] });
+      queued = true;
+    }
+    return queued;
+  };
 }
 
 const consoleLog = {

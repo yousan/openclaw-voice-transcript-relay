@@ -61,6 +61,8 @@ OpenClaw Gateway ──writes──▶ /tmp/openclaw/openclaw-<profile>-YYYY-MM-
 - **No model calls.** Nothing is summarised or rewritten; there is no agent turn per utterance.
 - **Nothing lost on restart.** The read position (file, inode, byte offset) is saved after each successful post, in `<state dir>/voice-transcript-relay/state.json`. On restart it resumes there, including when the log was rotated in between. Rate limits (429) and network errors are retried in order.
 - **Delay.** About the poll interval (0.5 s) plus `flushMs` (default 5 s): lines are collected and posted together, because Discord allows about 30 messages per minute per channel.
+- **Joins and leaves.** `➡️ Bob joined` / `⬅️ Bob left` lines, from the Gateway's `participant joined/left` log lines. Names and "is this a bot" come from a Discord member lookup (the plugin uses the Gateway's own Discord token for it; the CLI uses `bot.*` or `lookup.*`).
+- **Join notice.** When someone joins while the agent is in the room, the destination gets `@Bob This channel's conversation is transcribed as text.` — a real mention that notifies them. Not for the agent or other bots, nor for anyone the lookup cannot resolve; at most once per person while the agent stays in the room. Turn it off with `welcome.enabled: false`.
 - **The agent does not answer its own transcript.** The posts are the agent's own messages (or webhook/bot messages, which OpenClaw ignores unless `channels.discord.allowBots` is on).
 
 ## Standalone CLI
@@ -104,6 +106,10 @@ Plugin: `plugins.entries.voice-transcript-relay.config`. CLI: the JSON file give
 | `to` | plugin: the voice channel's chat | Discord target, e.g. `channel:<id>` (a thread id works too) |
 | `accountId` | default account | Which configured Discord account posts (plugin) |
 | `truncatedMark` | ` …` | Appended to lines the log cut short (see Limitations) |
+| `relay` | `{ user: true, assistant: true, presence: true }` | What to post: human speech, the agent's speech, joins and leaves |
+| `welcome` | `{ enabled: true, text: "{mention} This channel's conversation is transcribed as text." }` | Mention people who join (see above) |
+| `joinedText`, `leftText` | `➡️ {name} joined`, `⬅️ {name} left` | Join/leave line templates |
+| `lookup.tokenFile` / `lookup.openclawConfig` | CLI: `bot`'s token if set | Bot token used only to look up members (names, bot or not). Without one, join lines show the last known name or the user id and no join notices are sent |
 | `webhook.url` / `webhook.urlFile` | | Post through a webhook instead. Keep the URL out of the config: use `urlFile` (or `VTR_WEBHOOK_URL` for the CLI) |
 | `webhook.threadId` | | Post into this thread of the webhook's channel |
 | `webhook.username`, `webhook.avatarUrl` | | How the poster appears |
@@ -125,6 +131,8 @@ Everything said in the room by anyone the bot hears is posted, with their name, 
 - **Speech the realtime model did not transcribe is not there** — e.g. people the bot is not set up to talk to. For a full record of everyone in the room, use OpenClaw's transcripts feature.
 - **One voice room at a time per Gateway.** Transcript lines carry no room id; they are assigned to the room of the latest `joined` / `turn opened` line.
 - **Who said it is inferred** when several people talk at once (`Name?`).
+- **Joins and leaves only while the agent is in the room.** The Gateway logs individual joins and leaves only then. People already in the room when the agent joins — including the person whose arrival makes the agent join (`whenOccupied` auto-join) — appear in the log only as a count, so they get no join line and no join notice; the `sessionHeader` posted at that moment is what tells them. Nothing is logged while the agent is not in the room.
+- **Mentions through the Gateway's account.** OpenClaw's Discord send does not take per-message mention settings, so join/leave lines use names, not mentions; only the join notice mentions anyone.
 
 ## Development
 
@@ -146,6 +154,7 @@ OpenClaw の Discord ボイス（realtime モード）で bot と話した内容
 - **話者名**: bot は `assistantName`、人は直前の `speaker turn opened` 行の表示名。同時に複数人が話し始めたときは `名前?` と推定であることを示します。
 - **取りこぼし対策**: 投稿に成功した位置（ファイル・inode・バイト位置）を保存し、再起動やログのローテーションをまたいでも続きから流します。429 等は順番を保って再送します。
 - **他の人がいる部屋で使う前に**: 部屋にいる人の発言が名前付きで別のチャンネルに残ることを、チャンネルの説明などで先に伝えてください。流す先は参加者だけが読める場所にしてください。
+- **入退室と入室案内**: bot が VC にいる間の入退室を `➡️ 名前 joined` / `⬅️ 名前 left` で流し、入ってきた人にはメンションで「このチャンネルの会話は文字で転記されています」と知らせます（`welcome.text` で文言を変更、`welcome.enabled: false` で停止）。bot・ほかの bot・名前を引けない人には出しません。**bot が入った時点ですでに部屋にいた人（自動入室のきっかけになった人を含む）はログに人数しか出ないため、入退室の行も案内も出ません**。その場合は入室時の `sessionHeader` で伝えます。何を流すかは `relay: { user, assistant, presence }` で個別に切れます。
 - **CLI 版とプラグインを同じ gateway に同時に使わない**（二重に流れます）。切り替えるときは CLI を止め、プラグインの `stateFile` を CLI の位置ファイルに向けると続きから流れます。
 - **制限**: ログの書式は公開 API ではありません（2026.9.6 で確認、更新後は `--replay` で確認を）。500 文字を超える発話はログ側で切られます。stt-tts モードは対象外です。
 

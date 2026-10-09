@@ -2,7 +2,7 @@
   "id": "voice-transcript-relay",
   "name": "Voice Transcript Relay",
   "description": "Posts what is said in a Discord voice channel — the humans and the agent — into a text channel as it is said, by default the voice channel's own chat. No model calls.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "categories": [
     "voice"
   ],
@@ -64,6 +64,24 @@
     "stateFile": {
       "label": "State file",
       "help": "Saved read position. Default: <state dir>/voice-transcript-relay/state.json.",
+      "advanced": true
+    },
+    "relay": {
+      "label": "What to relay",
+      "help": "{ user, assistant, presence } — human speech, the agent's speech, joins and leaves. All on by default."
+    },
+    "welcome": {
+      "label": "Join notice for each person",
+      "help": "{ enabled, text }. Mentions a person who joins while the agent is in the room ({mention} in text). Not for bots. On by default."
+    },
+    "joinedText": {
+      "label": "Join line",
+      "help": "Default \"➡️ {name} joined\".",
+      "advanced": true
+    },
+    "leftText": {
+      "label": "Leave line",
+      "help": "Default \"⬅️ {name} left\".",
       "advanced": true
     }
   },
@@ -159,6 +177,39 @@
         "type": "string"
       },
       "stateFile": {
+        "type": "string"
+      },
+      "relay": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "user": {
+            "type": "boolean"
+          },
+          "assistant": {
+            "type": "boolean"
+          },
+          "presence": {
+            "type": "boolean"
+          }
+        }
+      },
+      "welcome": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "joinedText": {
+        "type": "string"
+      },
+      "leftText": {
         "type": "string"
       }
     }

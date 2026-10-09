@@ -26,3 +26,5 @@ export const turn = (user, speaker, g = G, c = C) =>
   line(`discord voice: realtime speaker turn opened guild=${g} channel=${c} user=${user} speaker=${speaker} owner=true`);
 export const said = (role, text, length = text.length) =>
   line(`discord voice: realtime ${role} transcript (${length} chars): ${text}`);
+export const presence = (joinedOrLeft, user, g = G, c = C) =>
+  line(`discord voice: participant ${joinedOrLeft} event queued guild=${g} channel=${c} user=${user} supervisorSession=agent:main:discord:channel:${c}`);

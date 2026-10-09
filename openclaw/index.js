@@ -10,7 +10,7 @@
 import os from "node:os";
 import path from "node:path";
 import { startRelay } from "../src/service.js";
-import { webhookSender } from "../src/discord.js";
+import { memberLookup, webhookSender } from "../src/discord.js";
 import { resolvePluginConfig } from "./config.js";
 
 export const PLUGIN_ID = "voice-transcript-relay";
@@ -33,7 +33,13 @@ export default {
           stateDir: stateDir(api),
           logging: hostConfig(api, ctx)?.logging,
         });
-        running = startRelay({ config, send: createSender(api, ctx, config), log: prefixed(log) });
+        const token = discordToken(hostConfig(api, ctx), config.accountId);
+        running = startRelay({
+          config,
+          send: createSender(api, ctx, config),
+          log: prefixed(log),
+          lookup: token ? memberLookup({ token }) : undefined,
+        });
       },
       async stop() {
         const r = running;
@@ -61,6 +67,13 @@ export function createSender(api, ctx, config) {
     });
     return result?.messageId;
   };
+}
+
+/** The Discord bot token from the Gateway config, when it is a plain string (used only to look up members). */
+export function discordToken(cfg, accountId) {
+  const d = cfg?.channels?.discord;
+  const token = (accountId && d?.accounts?.[accountId]?.token) || d?.token;
+  return typeof token === "string" && token ? token : undefined;
 }
 
 function hostConfig(api, ctx) {

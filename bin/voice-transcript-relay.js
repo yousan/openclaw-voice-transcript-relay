@@ -6,7 +6,7 @@
 import { parseArgs } from "node:util";
 import { loadConfig } from "../src/config.js";
 import { startRelay, replayFile } from "../src/service.js";
-import { botSender, webhookSender } from "../src/discord.js";
+import { botSender, memberLookup, webhookSender } from "../src/discord.js";
 
 const { values: args } = parseArgs({
   options: {
@@ -37,12 +37,15 @@ const send = dryRun
     ? botSender(config.bot)
     : webhookSender(config.webhook);
 
+const lookupToken = config.bot?.token || config.lookup?.token;
+const lookup = lookupToken ? memberLookup({ token: lookupToken }) : undefined;
+
 if (args.replay) {
-  await replayFile({ config, file: args.replay, send });
+  await replayFile({ config, file: args.replay, send, lookup });
   process.exit(0);
 }
 
-const relay = startRelay({ config, send, persist: !dryRun, fromStart: Boolean(args["from-start"]) });
+const relay = startRelay({ config, send, lookup, persist: !dryRun, fromStart: Boolean(args["from-start"]) });
 for (const sig of ["SIGINT", "SIGTERM"]) {
   process.on(sig, async () => {
     await relay.stop();

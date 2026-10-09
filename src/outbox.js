@@ -52,9 +52,13 @@ export class Outbox {
     this.idlePos = null;
   }
 
-  add(text, pos, dest = {}) {
+  /**
+   * @param {string|Promise<string|null>} text  a promise is awaited at send time, in order; null drops it
+   * @param {{mentions?: string[]}} [opts]  mentions: user ids this message should notify; sent on its own
+   */
+  add(text, pos, dest = {}, opts = {}) {
     this.idlePos = null; // pos is later than any idle position seen so far
-    this.pending.push({ text, pos, dest });
+    this.pending.push({ text, pos, dest, mentions: opts.mentions });
     if (this.flushMs <= 0) this.flush();
     else if (!this.timer) this.timer = setTimeout(() => this.flush(), this.flushMs);
   }
@@ -69,21 +73,14 @@ export class Outbox {
     if (this.timer) clearTimeout(this.timer), (this.timer = null);
     if (this.pending.length === 0) return this.running;
     const batch = this.pending.splice(0);
-    // One group per destination, in order (rooms rarely change within a batch).
-    const groups = [];
-    for (const b of batch) {
-      const key = `${b.dest?.guildId}/${b.dest?.channelId}`;
-      if (groups.at(-1)?.key !== key) groups.push({ key, dest: b.dest, texts: [] });
-      groups.at(-1).texts.push(b.text);
-    }
-    const messages = groups.flatMap((g) => chunk(g.texts).map((content) => ({ content, dest: g.dest })));
     const lastPos = batch.at(-1).pos;
     this.busy = true;
     this.running = this.running.then(async () => {
-      for (const { content, dest } of messages) {
+      const texts = await Promise.all(batch.map((b) => Promise.resolve(b.text).catch(() => null)));
+      for (const { content, dest, mentions } of toMessages(batch, texts)) {
         for (;;) {
           try {
-            this.onSent(await this.sendFn(content, dest), content);
+            this.onSent(await this.sendFn(content, dest, { mentions }), content);
             break;
           } catch (error) {
             this.onError(error);
@@ -100,6 +97,32 @@ export class Outbox {
     });
     return this.running;
   }
+}
+
+// One message per run of lines with the same destination; a message that
+// mentions someone always goes out on its own.
+function toMessages(batch, texts) {
+  const groups = [];
+  batch.forEach((b, i) => {
+    if (texts[i] == null) return;
+    const key = `${b.dest?.guildId}/${b.dest?.channelId}`;
+    if (b.mentions?.length) return groups.push({ key, dest: b.dest, texts: [texts[i]], mentions: b.mentions, solo: true });
+    const last = groups.at(-1);
+    if (!last || last.solo || last.key !== key) groups.push({ key, dest: b.dest, texts: [] });
+    groups.at(-1).texts.push(texts[i]);
+  });
+  return groups.flatMap((g) => chunk(g.texts).map((content) => ({ content, dest: g.dest, mentions: g.mentions })));
+}
+
+export function formatPresence(item, user, options = {}) {
+  const name = escapeMarkdown(user?.name || item.label || item.userId) + (user?.bot ? " (bot)" : "");
+  const template = item.joined ? options.joinedText ?? "➡️ {name} joined" : options.leftText ?? "⬅️ {name} left";
+  return template.replaceAll("{name}", name);
+}
+
+export function formatWelcome(item, options = {}) {
+  const template = options.welcome?.text ?? "{mention} This channel's conversation is transcribed as text.";
+  return template.replaceAll("{mention}", `<@${item.userId}>`);
 }
 
 // Spoken "@everyone" must not ping, whichever way the message is delivered.
