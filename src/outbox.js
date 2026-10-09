@@ -7,7 +7,7 @@ export function formatLine(item, options = {}) {
   const name = escapeMarkdown(item.speaker) + (item.guess ? "?" : "");
   const time = options.showTime ? `\`${clock(item.at, options.timeZone)}\` ` : "";
   const cut = item.truncated ? options.truncatedMark ?? " …" : "";
-  return `${time}**${name}**: ${item.text}${cut}`;
+  return `${time}**${name}**: ${defuse(item.text)}${cut}`;
 }
 
 export function formatSession(item, options = {}) {
@@ -52,9 +52,9 @@ export class Outbox {
     this.idlePos = null;
   }
 
-  add(text, pos) {
+  add(text, pos, dest = {}) {
     this.idlePos = null; // pos is later than any idle position seen so far
-    this.pending.push({ text, pos });
+    this.pending.push({ text, pos, dest });
     if (this.flushMs <= 0) this.flush();
     else if (!this.timer) this.timer = setTimeout(() => this.flush(), this.flushMs);
   }
@@ -69,14 +69,21 @@ export class Outbox {
     if (this.timer) clearTimeout(this.timer), (this.timer = null);
     if (this.pending.length === 0) return this.running;
     const batch = this.pending.splice(0);
-    const messages = chunk(batch.map((b) => b.text));
+    // One group per destination, in order (rooms rarely change within a batch).
+    const groups = [];
+    for (const b of batch) {
+      const key = `${b.dest?.guildId}/${b.dest?.channelId}`;
+      if (groups.at(-1)?.key !== key) groups.push({ key, dest: b.dest, texts: [] });
+      groups.at(-1).texts.push(b.text);
+    }
+    const messages = groups.flatMap((g) => chunk(g.texts).map((content) => ({ content, dest: g.dest })));
     const lastPos = batch.at(-1).pos;
     this.busy = true;
     this.running = this.running.then(async () => {
-      for (const content of messages) {
+      for (const { content, dest } of messages) {
         for (;;) {
           try {
-            this.onSent(await this.sendFn(content), content);
+            this.onSent(await this.sendFn(content, dest), content);
             break;
           } catch (error) {
             this.onError(error);
@@ -93,6 +100,11 @@ export class Outbox {
     });
     return this.running;
   }
+}
+
+// Spoken "@everyone" must not ping, whichever way the message is delivered.
+function defuse(s) {
+  return String(s).replace(/@(everyone|here)/g, "@\u200b$1");
 }
 
 function escapeMarkdown(s) {

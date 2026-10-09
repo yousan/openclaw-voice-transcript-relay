@@ -82,7 +82,7 @@ test("resumes from a saved position, also when that file was rotated", () => {
   const f = path.join(dir, "a.log");
   fs.writeFileSync(f, "one\ntwo\n");
   const ino = fs.statSync(f).ino;
-  fs.renameSync(f, `${f}.1`);
+  fs.renameSync(f, f.replace(/\.log$/, ".1.log"));
   fs.writeFileSync(f, "three\n");
   const got = [];
   const fl = new LogFollower({ resolvePath: () => f, onLine: (l) => got.push(l), resume: { file: f, ino, offset: 4 } });

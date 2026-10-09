@@ -1,0 +1,166 @@
+{
+  "id": "voice-transcript-relay",
+  "name": "Voice Transcript Relay",
+  "description": "Posts what is said in a Discord voice channel — the humans and the agent — into a text channel as it is said, by default the voice channel's own chat. No model calls.",
+  "version": "0.1.0",
+  "categories": [
+    "voice"
+  ],
+  "activation": {
+    "onStartup": true
+  },
+  "uiHints": {
+    "channelIds": {
+      "label": "Voice channels",
+      "help": "Only relay these voice channels (ids). Empty = every room the agent joins."
+    },
+    "guildIds": {
+      "label": "Servers",
+      "help": "Only relay voice channels in these servers (ids).",
+      "advanced": true
+    },
+    "assistantName": {
+      "label": "Agent's name",
+      "help": "Shown on the agent's lines."
+    },
+    "speakerNames": {
+      "label": "Fixed speaker names",
+      "help": "{ \"<user id>\": \"Name\" } overrides the Discord display name.",
+      "advanced": true
+    },
+    "flushMs": {
+      "label": "Collect for (ms)",
+      "help": "0 = one message per utterance. Default 5000; Discord allows about 30 webhook messages per minute per channel."
+    },
+    "to": {
+      "label": "Destination",
+      "help": "Discord target such as channel:<id>. Default: the voice channel's own chat.",
+      "advanced": true
+    },
+    "accountId": {
+      "label": "Discord account",
+      "help": "Which configured Discord account posts. Default: the default account.",
+      "advanced": true
+    },
+    "webhook": {
+      "label": "Webhook instead",
+      "help": "{ urlFile, threadId, username }. Posts through a Discord webhook instead of the agent's account.",
+      "advanced": true
+    },
+    "sessionHeader": {
+      "label": "Join notice",
+      "help": "Posted when the agent joins a room. {channelId} and {guildId} are replaced. false to turn off."
+    },
+    "showTime": {
+      "label": "Show time",
+      "help": "Prefix lines with HH:MM:SS (timeZone to pick the zone).",
+      "advanced": true
+    },
+    "logFile": {
+      "label": "Log file",
+      "help": "Read this file instead of the Gateway's rolling log.",
+      "advanced": true
+    },
+    "stateFile": {
+      "label": "State file",
+      "help": "Saved read position. Default: <state dir>/voice-transcript-relay/state.json.",
+      "advanced": true
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "guildIds": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "channelIds": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "assistantName": {
+        "type": "string"
+      },
+      "speakerNames": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "speakerWindowMs": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "flushMs": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 600000
+      },
+      "showTime": {
+        "type": "boolean"
+      },
+      "timeZone": {
+        "type": "string"
+      },
+      "sessionHeader": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "const": false
+          }
+        ]
+      },
+      "truncatedMark": {
+        "type": "string"
+      },
+      "pollMs": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 60000
+      },
+      "to": {
+        "type": "string"
+      },
+      "accountId": {
+        "type": "string"
+      },
+      "webhook": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "urlFile": {
+            "type": "string"
+          },
+          "threadId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "profile": {
+        "type": "string"
+      },
+      "logDir": {
+        "type": "string"
+      },
+      "logFile": {
+        "type": "string"
+      },
+      "stateFile": {
+        "type": "string"
+      }
+    }
+  }
+}
