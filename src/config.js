@@ -7,6 +7,7 @@ const DEFAULTS = {
   logDir: "/tmp/openclaw",
   guildIds: [],
   channelIds: [],
+  allChannels: false,
   excludeGuildIds: [],
   excludeChannelIds: [],
   assistantName: "assistant",
@@ -42,6 +43,7 @@ export function loadConfig({ file, env = process.env, needWebhook = true } = {})
   if (env.VTR_LOG_DIR) c.logDir = env.VTR_LOG_DIR;
   if (env.VTR_GUILD_IDS) c.guildIds = env.VTR_GUILD_IDS.split(",");
   if (env.VTR_CHANNEL_IDS) c.channelIds = env.VTR_CHANNEL_IDS.split(",");
+  if (env.VTR_ALL_CHANNELS) c.allChannels = env.VTR_ALL_CHANNELS === "true";
   if (env.VTR_EXCLUDE_CHANNEL_IDS) c.excludeChannelIds = env.VTR_EXCLUDE_CHANNEL_IDS.split(",");
   if (env.VTR_ASSISTANT_NAME) c.assistantName = env.VTR_ASSISTANT_NAME;
   if (env.VTR_FLUSH_MS) c.flushMs = Number(env.VTR_FLUSH_MS);

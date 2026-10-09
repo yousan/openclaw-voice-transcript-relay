@@ -19,7 +19,7 @@ export default {
   id: PLUGIN_ID,
   name: "Voice Transcript Relay",
   description:
-    "Posts what is said in a Discord voice channel — the humans and the agent — into a text channel as it is said. No model calls.",
+    "Posts what is said in a Discord voice channel — the humans and the agent — into a text channel as it is said, for the voice channels you choose. Off until configured. No model calls.",
   register(api) {
     if (api.registrationMode && api.registrationMode !== "full") return;
     let running = null;

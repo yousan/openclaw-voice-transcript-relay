@@ -36,7 +36,7 @@ test("the service posts the room's lines into the voice channel's own chat", asy
   const logFile = path.join(dir, "gateway.log");
   fs.writeFileSync(logFile, "");
   const { api, sent, services } = fakeApi({
-    pluginConfig: { logFile, flushMs: 0, pollMs: 100, assistantName: "Bot", sessionHeader: false },
+    pluginConfig: { logFile, channelIds: [C], flushMs: 0, pollMs: 100, assistantName: "Bot", sessionHeader: false },
     stateDir: dir,
   });
   plugin.register(api);
@@ -70,4 +70,5 @@ test("plugin config defaults follow the Gateway's profile and state dir", () => 
   assert.equal(c.stateFile, "/s/voice-transcript-relay/state.json");
   assert.equal(c.flushMs, 5000);
   assert.equal(c.webhook, undefined);
+  assert.equal(c.allChannels, false);
 });
