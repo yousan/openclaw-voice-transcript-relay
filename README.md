@@ -96,7 +96,8 @@ Plugin: `plugins.entries.voice-transcript-relay.config`. CLI: the JSON file give
 | `profile` | plugin: the Gateway's `OPENCLAW_PROFILE` | OpenClaw profile; selects `openclaw-<profile>-YYYY-MM-DD.log` |
 | `logFile` | plugin: `logging.file` if set | Read this file instead of the rolling log |
 | `logDir` | `/tmp/openclaw` | Where the Gateway writes its rolling log |
-| `guildIds`, `channelIds` | all | Only relay these voice rooms |
+| `guildIds`, `channelIds` | all | Allowlist: only relay these voice rooms (empty = every room the agent joins) |
+| `excludeGuildIds`, `excludeChannelIds` | none | Denylist: never relay these rooms, even if the allowlist is empty or lists them. Speech, joins/leaves and join notices alike |
 | `assistantName` | `assistant` | Name shown on the agent's lines |
 | `speakerNames` | `{}` | `{ "<user id>": "Name" }`, overrides the Discord display name |
 | `speakerWindowMs` | `30000` | Turns opened by others within this window make a line a guess (`Name?`) |
@@ -117,7 +118,7 @@ Plugin: `plugins.entries.voice-transcript-relay.config`. CLI: the JSON file give
 | `bot.tokenFile` / `bot.openclawConfig` | | The bot token: a file, or the OpenClaw config that already has it (`channels.discord.token`, plain string only). Or `VTR_BOT_TOKEN` |
 | `stateFile` | plugin `<state dir>/voice-transcript-relay/state.json`, CLI `~/.local/state/openclaw-voice-transcript-relay/<profile>.json` | Saved read position |
 
-CLI only — environment variables override the file: `VTR_CONFIG`, `VTR_PROFILE`, `VTR_LOG_DIR`, `VTR_GUILD_IDS`, `VTR_CHANNEL_IDS`, `VTR_ASSISTANT_NAME`, `VTR_FLUSH_MS`, `VTR_WEBHOOK_URL`, `VTR_THREAD_ID`, `VTR_BOT_TOKEN`, `VTR_STATE_FILE`.
+CLI only — environment variables override the file: `VTR_CONFIG`, `VTR_PROFILE`, `VTR_LOG_DIR`, `VTR_GUILD_IDS`, `VTR_CHANNEL_IDS`, `VTR_EXCLUDE_CHANNEL_IDS`, `VTR_ASSISTANT_NAME`, `VTR_FLUSH_MS`, `VTR_WEBHOOK_URL`, `VTR_THREAD_ID`, `VTR_BOT_TOKEN`, `VTR_STATE_FILE`.
 
 ## Before you use it with other people
 
@@ -155,6 +156,7 @@ OpenClaw の Discord ボイス（realtime モード）で bot と話した内容
 - **取りこぼし対策**: 投稿に成功した位置（ファイル・inode・バイト位置）を保存し、再起動やログのローテーションをまたいでも続きから流します。429 等は順番を保って再送します。
 - **他の人がいる部屋で使う前に**: 部屋にいる人の発言が名前付きで別のチャンネルに残ることを、チャンネルの説明などで先に伝えてください。流す先は参加者だけが読める場所にしてください。
 - **入退室と入室案内**: bot が VC にいる間の入退室を `➡️ 名前 joined` / `⬅️ 名前 left` で流し、入ってきた人にはメンションで「このチャンネルの会話は文字で転記されています」と知らせます（`welcome.text` で文言を変更、`welcome.enabled: false` で停止）。bot・ほかの bot・名前を引けない人には出しません。**bot が入った時点ですでに部屋にいた人（自動入室のきっかけになった人を含む）はログに人数しか出ないため、入退室の行も案内も出ません**。その場合は入室時の `sessionHeader` で伝えます。何を流すかは `relay: { user, assistant, presence }` で個別に切れます。
+- **転記する VC の選び方**: `channelIds`（転記する VC だけを指定、空なら全部 = 既定）と `excludeChannelIds`（転記しない VC を指定）。両方書いたときは除外が優先です。
 - **CLI 版とプラグインを同じ gateway に同時に使わない**（二重に流れます）。切り替えるときは CLI を止め、プラグインの `stateFile` を CLI の位置ファイルに向けると続きから流れます。
 - **制限**: ログの書式は公開 API ではありません（2026.9.6 で確認、更新後は `--replay` で確認を）。500 文字を超える発話はログ側で切られます。stt-tts モードは対象外です。
 

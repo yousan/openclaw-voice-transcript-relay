@@ -95,3 +95,8 @@ test("Relay keeps presence in its own room without moving the current room", () 
   assert.equal(item.channelId, "888888888888888888");
   assert.equal(r.current.channelId, C);
 });
+
+test("excluded rooms get no join lines or notices", async () => {
+  const sent = await replay([joined(), presence("joined", U2)], { excludeChannelIds: [C] });
+  assert.deepEqual(sent, []);
+});
