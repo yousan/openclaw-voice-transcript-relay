@@ -100,3 +100,20 @@ test("excluded rooms get no join lines or notices", async () => {
   const sent = await replay([joined(), presence("joined", U2)], { excludeChannelIds: [C] });
   assert.deepEqual(sent, []);
 });
+
+test("the agent's leave posts sessionFooter, and a rejoin posts the header again", async () => {
+  const { sessionEnded } = await import("./fixtures.js");
+  const sent = await replay(
+    [joined(), said("assistant", "hi"), sessionEnded(), joined(), joined(), sessionEnded()],
+    { sessionHeader: "IN", sessionFooter: "OUT" },
+  );
+  assert.deepEqual(sent.map((s) => s.content), ["IN", "**Bot**: hi", "OUT", "IN", "OUT"]);
+  const off = await replay([joined(), sessionEnded()], { sessionHeader: "IN", sessionFooter: false });
+  assert.deepEqual(off.map((s) => s.content), ["IN"]);
+});
+
+test("join notices reset after the agent leaves", async () => {
+  const { sessionEnded } = await import("./fixtures.js");
+  const sent = await replay([joined(), presence("joined", U1), sessionEnded(), joined(), presence("joined", U1)], { sessionFooter: false });
+  assert.equal(sent.filter((s) => s.mentions).length, 2);
+});

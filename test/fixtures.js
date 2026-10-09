@@ -28,3 +28,5 @@ export const said = (role, text, length = text.length) =>
   line(`discord voice: realtime ${role} transcript (${length} chars): ${text}`);
 export const presence = (joinedOrLeft, user, g = G, c = C) =>
   line(`discord voice: participant ${joinedOrLeft} event queued guild=${g} channel=${c} user=${user} supervisorSession=agent:main:discord:channel:${c}`);
+export const sessionEnded = (g = G, c = C) =>
+  line(`discord voice: participant session-ended event queued guild=${g} channel=${c} supervisorSession=agent:main:discord:channel:${c}`);

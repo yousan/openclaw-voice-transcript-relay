@@ -106,6 +106,7 @@ Plugin: `plugins.entries.voice-transcript-relay.config`. CLI: the JSON file give
 | `sessionHeader` | plugin `🎙️ This voice chat is transcribed here.`, CLI `🎙️ <#{channelId}>` | Posted when the agent joins a room (`{channelId}`, `{guildId}` replaced); `false` to turn off |
 | `to` | plugin: the voice channel's chat | Discord target, e.g. `channel:<id>` (a thread id works too) |
 | `accountId` | default account | Which configured Discord account posts (plugin) |
+| `sessionFooter` | `🎙️ The agent left the voice channel.` | Posted when the agent leaves the room (`{channelId}`, `{guildId}` replaced); `false` to turn off |
 | `truncatedMark` | ` …` | Appended to lines the log cut short (see Limitations) |
 | `relay` | `{ user: true, assistant: true, presence: true }` | What to post: human speech, the agent's speech, joins and leaves |
 | `welcome` | `{ enabled: true, text: "{mention} This channel's conversation is transcribed as text." }` | Mention people who join (see above) |
@@ -155,6 +156,7 @@ OpenClaw の Discord ボイス（realtime モード）で bot と話した内容
 - **話者名**: bot は `assistantName`、人は直前の `speaker turn opened` 行の表示名。同時に複数人が話し始めたときは `名前?` と推定であることを示します。
 - **取りこぼし対策**: 投稿に成功した位置（ファイル・inode・バイト位置）を保存し、再起動やログのローテーションをまたいでも続きから流します。429 等は順番を保って再送します。
 - **他の人がいる部屋で使う前に**: 部屋にいる人の発言が名前付きで別のチャンネルに残ることを、チャンネルの説明などで先に伝えてください。流す先は参加者だけが読める場所にしてください。
+- **bot 自身の出入り**: 入室で `sessionHeader`、退室で `sessionFooter`（既定 `🎙️ The agent left the voice channel.`、`false` で停止）を流します。
 - **入退室と入室案内**: bot が VC にいる間の入退室を `➡️ 名前 joined` / `⬅️ 名前 left` で流し、入ってきた人にはメンションで「このチャンネルの会話は文字で転記されています」と知らせます（`welcome.text` で文言を変更、`welcome.enabled: false` で停止）。bot・ほかの bot・名前を引けない人には出しません。**bot が入った時点ですでに部屋にいた人（自動入室のきっかけになった人を含む）はログに人数しか出ないため、入退室の行も案内も出ません**。その場合は入室時の `sessionHeader` で伝えます。何を流すかは `relay: { user, assistant, presence }` で個別に切れます。
 - **転記する VC の選び方**: `channelIds`（転記する VC だけを指定、空なら全部 = 既定）と `excludeChannelIds`（転記しない VC を指定）。両方書いたときは除外が優先です。
 - **CLI 版とプラグインを同じ gateway に同時に使わない**（二重に流れます）。切り替えるときは CLI を止め、プラグインの `stateFile` を CLI の位置ファイルに向けると続きから流れます。

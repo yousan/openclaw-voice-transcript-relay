@@ -15,6 +15,11 @@ export function formatSession(item, options = {}) {
   return template.replaceAll("{channelId}", item.channelId).replaceAll("{guildId}", item.guildId);
 }
 
+export function formatSessionEnd(item, options = {}) {
+  const template = options.sessionFooter ?? "🎙️ The agent left the voice channel.";
+  return template.replaceAll("{channelId}", item.channelId).replaceAll("{guildId}", item.guildId);
+}
+
 /** Split text into Discord-sized messages, preferring line boundaries. */
 export function chunk(lines, limit = DISCORD_LIMIT) {
   const out = [];

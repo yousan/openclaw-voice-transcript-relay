@@ -18,6 +18,7 @@ export class Relay {
     this.relayKinds = { user: true, assistant: true, presence: true, ...(options.relay || {}) };
     this.labels = new Map(); // userId -> last Discord display label seen in a turn line
     this.current = null; // { guildId, channelId }
+    this.present = false; // the agent is in this.current (between "joined" and "session-ended")
     this.turns = []; // [{ at, userId, speaker }]
   }
 
@@ -26,9 +27,14 @@ export class Relay {
     if (!event) return null;
     switch (event.type) {
       case "joined": {
+        // A repeated "joined" within one stay (reconnect) is not a new session.
         const changed =
-          !this.current || this.current.guildId !== event.guildId || this.current.channelId !== event.channelId;
+          !this.present ||
+          !this.current ||
+          this.current.guildId !== event.guildId ||
+          this.current.channelId !== event.channelId;
         this.current = { guildId: event.guildId, channelId: event.channelId };
+        this.present = true;
         this.turns = [];
         if (!this.allowed()) return null;
         return { kind: "session", at: event.at, guildId: event.guildId, channelId: event.channelId, changed };
@@ -39,6 +45,13 @@ export class Relay {
         if (event.speaker) this.labels.set(event.userId, event.speaker);
         if (this.turns.length > 50) this.turns.splice(0, this.turns.length - 50);
         return null;
+      }
+      case "left": {
+        const wasPresent = this.present;
+        this.present = false;
+        this.turns = [];
+        if (!wasPresent || !this.allowedRoom(event.guildId, event.channelId)) return null;
+        return { kind: "session-end", at: event.at, guildId: event.guildId, channelId: event.channelId };
       }
       case "presence": {
         // The line names its own room; it does not move the current room.
