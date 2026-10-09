@@ -17,7 +17,7 @@ export function webhookSender({ url, threadId, username, avatarUrl, fetchImpl = 
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (res.ok) return;
+    if (res.ok) return messageId(res);
     throw await toError(res);
   };
 }
@@ -40,9 +40,17 @@ export function botSender({ token, channelId, fetchImpl = fetch }) {
       },
       body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
     });
-    if (res.ok) return;
+    if (res.ok) return messageId(res);
     throw await toError(res);
   };
+}
+
+async function messageId(res) {
+  try {
+    return (await res.json())?.id;
+  } catch {
+    return undefined;
+  }
 }
 
 async function toError(res) {

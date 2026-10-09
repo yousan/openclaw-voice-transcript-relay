@@ -48,6 +48,7 @@ const outbox = new Outbox({
   flushMs: config.flushMs,
   onDelivered: (pos) => !dryRun && saveSoon(pos),
   onError: (e) => log("send failed:", e.message),
+  onSent: (id, content) => !dryRun && log(`posted ${id ?? "?"} (${content.split("\n").length} lines)`),
 });
 const relay = new Relay(config);
 
