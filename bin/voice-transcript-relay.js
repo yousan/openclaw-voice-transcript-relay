@@ -32,8 +32,8 @@ if (args.help) {
   process.exit(0);
 }
 
-const config = loadConfig({ file: args.config ?? process.env.VTR_CONFIG });
 const dryRun = Boolean(args["dry-run"] || args.replay);
+const config = loadConfig({ file: args.config ?? process.env.VTR_CONFIG, needWebhook: !dryRun });
 const log = (...a) => console.error(new Date().toISOString(), ...a);
 
 const send = dryRun
