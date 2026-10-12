@@ -104,12 +104,22 @@ test("excluded rooms get no join lines or notices", async () => {
 test("the agent's leave posts sessionFooter, and a rejoin posts the header again", async () => {
   const { sessionEnded } = await import("./fixtures.js");
   const sent = await replay(
-    [joined(), said("assistant", "hi"), sessionEnded(), joined(), joined(), sessionEnded()],
+    [joined(), said("assistant", "hi"), sessionEnded(), joined(), joined(), said("assistant", "again"), sessionEnded()],
     { sessionHeader: "IN", sessionFooter: "OUT" },
   );
-  assert.deepEqual(sent.map((s) => s.content), ["IN", "**Bot**: hi", "OUT", "IN", "OUT"]);
-  const off = await replay([joined(), sessionEnded()], { sessionHeader: "IN", sessionFooter: false });
-  assert.deepEqual(off.map((s) => s.content), ["IN"]);
+  assert.deepEqual(sent.map((s) => s.content), ["IN", "**Bot**: hi", "OUT", "IN", "**Bot**: again", "OUT"]);
+  const off = await replay([joined(), said("assistant", "hi"), sessionEnded()], { sessionHeader: "IN", sessionFooter: false });
+  assert.deepEqual(off.map((s) => s.content), ["IN", "**Bot**: hi"]);
+});
+
+test("a stay with nothing relayed posts neither header nor footer", async () => {
+  const { sessionEnded } = await import("./fixtures.js");
+  const empty = await replay([joined(), sessionEnded(), joined(), joined(), sessionEnded()], { sessionHeader: "IN", sessionFooter: "OUT" });
+  assert.deepEqual(empty, []);
+  // The header waits for the first item, then comes before it.
+  const late = await replay([joined(), presence("joined", U1), sessionEnded()], { sessionHeader: "IN", sessionFooter: "OUT" });
+  assert.deepEqual(late.map((s) => s.content), ["IN", "➡️ Alice joined", late[2].content, "OUT"]);
+  assert.deepEqual(late[2].mentions, [U1]);
 });
 
 test("join notices reset after the agent leaves", async () => {

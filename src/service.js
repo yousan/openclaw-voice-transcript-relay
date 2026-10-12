@@ -8,6 +8,8 @@ import { Relay } from "./relay.js";
 import { LogFollower, logFileFor } from "./tail.js";
 import { Outbox, formatLine, formatPresence, formatSession, formatSessionEnd, formatWelcome } from "./outbox.js";
 
+const VERSION = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
+
 /**
  * @param {object} o
  * @param {object} o.config        see README "Configuration"
@@ -62,7 +64,7 @@ export function startRelay({ config, send, log = consoleLog, persist = true, fro
     fromStart,
     onSwitch: (p) => log.info(`following ${p.file} from byte ${p.offset}`),
   });
-  log.info(`watching ${resolvePath()} (flushMs=${config.flushMs})`);
+  log.info(`watching ${resolvePath()} (v${VERSION}, flushMs=${config.flushMs})`);
 
   const timer = setInterval(() => {
     try {
@@ -99,27 +101,43 @@ export async function replayFile({ config, file, send, lookup }) {
   await outbox.flush();
 }
 
-/** Queue what one relay item turns into. Returns false when nothing was queued. */
+/**
+ * Queue what one relay item turns into. Returns false when nothing was queued.
+ * The session header waits for the first thing worth posting, so a stay with
+ * nothing relayed (the agent joining an empty room and leaving) posts nothing.
+ */
 function itemHandler(config, { lookup, log }) {
   const welcomeOn = config.welcome?.enabled !== false;
   let welcomed = new Set(); // user ids welcomed since the agent joined this room
+  let header = null; // {item, dest} of a header not posted yet
+  let started = false; // something was posted in this stay
   let warned = false;
+  const begin = (pos, outbox) => {
+    if (header) outbox.add(formatSession(header.item, config), pos, header.dest);
+    header = null;
+    started = true;
+  };
   return function handle(item, pos, outbox) {
     if (!item) return false;
     const dest = { guildId: item.guildId, channelId: item.channelId };
     if (item.kind === "session") {
-      if (item.changed) welcomed = new Set();
-      if (config.sessionHeader === false || !item.changed) return false;
-      outbox.add(formatSession(item, config), pos, dest);
-      return true;
+      if (!item.changed) return false;
+      welcomed = new Set();
+      started = false;
+      header = config.sessionHeader === false ? null : { item, dest };
+      return false;
     }
     if (item.kind === "session-end") {
       welcomed = new Set();
-      if (config.sessionFooter === false) return false;
+      header = null;
+      const had = started;
+      started = false;
+      if (config.sessionFooter === false || !had) return false;
       outbox.add(formatSessionEnd(item, config), pos, dest);
       return true;
     }
     if (item.kind === "line") {
+      begin(pos, outbox);
       outbox.add(formatLine(item, config), pos, dest);
       return true;
     }
@@ -127,6 +145,7 @@ function itemHandler(config, { lookup, log }) {
     const who = lookup ? lookup(item.guildId, item.userId) : Promise.resolve(null);
     let queued = false;
     if (item.relay) {
+      begin(pos, outbox);
       outbox.add(who.then((u) => formatPresence(item, u, config)), pos, dest);
       queued = true;
     }
@@ -136,6 +155,7 @@ function itemHandler(config, { lookup, log }) {
         log.warn("join notices need a Discord lookup to tell people from bots; none is configured, so none are sent");
       }
       welcomed.add(item.userId);
+      if (lookup) begin(pos, outbox);
       // Only people: a bot, or someone we could not look up, gets no notice.
       outbox.add(who.then((u) => (u && !u.bot ? formatWelcome(item, config) : null)), pos, dest, { mentions: [item.userId] });
       queued = true;

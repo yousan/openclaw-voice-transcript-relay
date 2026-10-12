@@ -107,10 +107,10 @@ Plugin: `plugins.entries.voice-transcript-relay.config`. CLI: the JSON file give
 | `speakerWindowMs` | `30000` | Turns opened by others within this window make a line a guess (`Name?`) |
 | `flushMs` | plugin `5000`, CLI `0` | `0` = one message per utterance; otherwise collect for this long |
 | `showTime` | `false` | Prefix each line with `HH:MM:SS` (`timeZone` to pick the zone) |
-| `sessionHeader` | plugin `🎙️ This voice chat is transcribed here.`, CLI `🎙️ <#{channelId}>` | Posted when the agent joins a room (`{channelId}`, `{guildId}` replaced); `false` to turn off |
+| `sessionHeader` | plugin `🎙️ This voice chat is transcribed here.`, CLI `🎙️ <#{channelId}>` | Posted when the agent joins a room, just before the first thing relayed from that stay (`{channelId}`, `{guildId}` replaced); `false` to turn off |
 | `to` | plugin: the voice channel's chat | Discord target, e.g. `channel:<id>` (a thread id works too) |
 | `accountId` | default account | Which configured Discord account posts (plugin) |
-| `sessionFooter` | `🎙️ The agent left the voice channel.` | Posted when the agent leaves the room (`{channelId}`, `{guildId}` replaced); `false` to turn off |
+| `sessionFooter` | `🎙️ The agent left the voice channel.` | Posted when the agent leaves the room (`{channelId}`, `{guildId}` replaced); `false` to turn off. A stay with nothing relayed (the agent joining an empty room and leaving) posts neither header nor footer |
 | `truncatedMark` | ` …` | Appended to lines the log cut short (see Limitations) |
 | `relay` | `{ user: true, assistant: true, presence: true }` | What to post: human speech, the agent's speech, joins and leaves |
 | `welcome` | `{ enabled: true, text: "{mention} This channel's conversation is transcribed as text." }` | Mention people who join (see above) |
@@ -127,7 +127,7 @@ CLI only — environment variables override the file: `VTR_CONFIG`, `VTR_PROFILE
 
 ## Before you use it with other people
 
-Everything said in the room by anyone the bot hears is posted, with their name, to a text channel that may have a different audience. Tell people before they join, and pick a destination only the participants can read. Discord voice channels have no topic and their chat cannot pin messages, so the plugin posts `sessionHeader` in the chat each time the agent joins; say it there, and in a server rule or channel the participants read. Use `channelIds` to keep it to the rooms you meant.
+Everything said in the room by anyone the bot hears is posted, with their name, to a text channel that may have a different audience. Tell people before they join, and pick a destination only the participants can read. Discord voice channels have no topic and their chat cannot pin messages, so the plugin posts `sessionHeader` in the chat each time the agent joins, before anything said there; say it there, and in a server rule or channel the participants read. Use `channelIds` to keep it to the rooms you meant.
 
 ## Limitations
 
@@ -137,7 +137,7 @@ Everything said in the room by anyone the bot hears is posted, with their name, 
 - **Speech the realtime model did not transcribe is not there** — e.g. people the bot is not set up to talk to. For a full record of everyone in the room, use OpenClaw's transcripts feature.
 - **One voice room at a time per Gateway.** Transcript lines carry no room id; they are assigned to the room of the latest `joined` / `turn opened` line.
 - **Who said it is inferred** when several people talk at once (`Name?`).
-- **Joins and leaves only while the agent is in the room.** The Gateway logs individual joins and leaves only then. People already in the room when the agent joins — including the person whose arrival makes the agent join (`whenOccupied` auto-join) — appear in the log only as a count, so they get no join line and no join notice; the `sessionHeader` posted at that moment is what tells them. Nothing is logged while the agent is not in the room.
+- **Joins and leaves only while the agent is in the room.** The Gateway logs individual joins and leaves only then. People already in the room when the agent joins — including the person whose arrival makes the agent join (`whenOccupied` auto-join) — appear in the log only as a count, so they get no join line and no join notice; the `sessionHeader`, posted before their first line, is what tells them. Nothing is logged while the agent is not in the room.
 - **Mentions through the Gateway's account.** OpenClaw's Discord send does not take per-message mention settings, so join/leave lines use names, not mentions; only the join notice mentions anyone.
 
 ## Development
@@ -160,8 +160,8 @@ OpenClaw の Discord ボイス（realtime モード）で bot と話した内容
 - **話者名**: bot は `assistantName`、人は直前の `speaker turn opened` 行の表示名。同時に複数人が話し始めたときは `名前?` と推定であることを示します。
 - **取りこぼし対策**: 投稿に成功した位置（ファイル・inode・バイト位置）を保存し、再起動やログのローテーションをまたいでも続きから流します。429 等は順番を保って再送します。
 - **他の人がいる部屋で使う前に**: 部屋にいる人の発言が名前付きで別のチャンネルに残ることを、チャンネルの説明などで先に伝えてください。流す先は参加者だけが読める場所にしてください。
-- **bot 自身の出入り**: 入室で `sessionHeader`、退室で `sessionFooter`（既定 `🎙️ The agent left the voice channel.`、`false` で停止）を流します。
-- **入退室と入室案内**: bot が VC にいる間の入退室を `➡️ 名前 joined` / `⬅️ 名前 left` で流し、入ってきた人にはメンションで「このチャンネルの会話は文字で転記されています」と知らせます（`welcome.text` で文言を変更、`welcome.enabled: false` で停止）。bot・ほかの bot・名前を引けない人には出しません。**bot が入った時点ですでに部屋にいた人（自動入室のきっかけになった人を含む）はログに人数しか出ないため、入退室の行も案内も出ません**。その場合は入室時の `sessionHeader` で伝えます。何を流すかは `relay: { user, assistant, presence }` で個別に切れます。
+- **bot 自身の出入り**: 入室で `sessionHeader`、退室で `sessionFooter`（既定 `🎙️ The agent left the voice channel.`、`false` で停止）を流します。`sessionHeader` はその回の最初の転記の直前に流れます。何も転記しないまま bot が出た回（誰もいない部屋に入ってすぐ出たときなど）は、どちらも流しません。
+- **入退室と入室案内**: bot が VC にいる間の入退室を `➡️ 名前 joined` / `⬅️ 名前 left` で流し、入ってきた人にはメンションで「このチャンネルの会話は文字で転記されています」と知らせます（`welcome.text` で文言を変更、`welcome.enabled: false` で停止）。bot・ほかの bot・名前を引けない人には出しません。**bot が入った時点ですでに部屋にいた人（自動入室のきっかけになった人を含む）はログに人数しか出ないため、入退室の行も案内も出ません**。その場合は、最初の転記の前に流れる `sessionHeader` で伝えます。何を流すかは `relay: { user, assistant, presence }` で個別に切れます。
 - **既定はオフ**: `channelIds`（または `guildIds`）で VC を指定するか、`allChannels: true` を書くまで何も流しません（0.4.0〜。それまでは既定で全部を流していたので、全部流したい場合は `allChannels: true` を足してください）。`excludeChannelIds` で指定した VC は常に流しません。
 - **CLI 版とプラグインを同じ gateway に同時に使わない**（二重に流れます）。切り替えるときは CLI を止め、プラグインの `stateFile` を CLI の位置ファイルに向けると続きから流れます。
 - **制限**: ログの書式は公開 API ではありません（2026.9.6 で確認、更新後は `--replay` で確認を）。500 文字を超える発話はログ側で切られます。stt-tts モードは対象外です。
