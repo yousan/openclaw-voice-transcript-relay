@@ -98,7 +98,7 @@ Plugin: `plugins.entries.voice-transcript-relay.config`. CLI: the JSON file give
 |---|---|---|
 | `profile` | plugin: the Gateway's `OPENCLAW_PROFILE` | OpenClaw profile; selects `openclaw-<profile>-YYYY-MM-DD.log` |
 | `logFile` | plugin: `logging.file` if set | Read this file instead of the rolling log |
-| `logDir` | `/tmp/openclaw` | Where the Gateway writes its rolling log |
+| `logDir` | `/tmp/openclaw` if it is a directory owned by you, else `<tmpdir>/openclaw-<uid>` (OpenClaw's own rule) | Where the Gateway writes its rolling log. The CLI runs outside the Gateway; set this if the Gateway's `TMPDIR` differs from yours |
 | `guildIds`, `channelIds` | none | Relay these voice rooms. **Nothing is relayed until you set one of these or `allChannels`** |
 | `allChannels` | `false` | Relay every room the agent joins (minus the exclusions) |
 | `excludeGuildIds`, `excludeChannelIds` | none | Never relay these rooms, even with `allChannels` or when listed above. Speech, joins/leaves and join notices alike |
