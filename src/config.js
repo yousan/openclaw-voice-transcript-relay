@@ -1,10 +1,11 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { defaultLogDir } from "./logdir.js";
 
 const DEFAULTS = {
   profile: "",
-  logDir: "/tmp/openclaw",
+  logDir: undefined,
   guildIds: [],
   channelIds: [],
   allChannels: false,
@@ -65,7 +66,7 @@ export function loadConfig({ file, env = process.env, needWebhook = true } = {})
 }
 
 function finish(c, env) {
-  c.logDir = expand(c.logDir);
+  c.logDir = expand(c.logDir) || defaultLogDir();
   if (!c.stateFile) {
     const base = env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state");
     c.stateFile = path.join(base, "openclaw-voice-transcript-relay", `${c.profile || "default"}.json`);

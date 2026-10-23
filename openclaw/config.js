@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { defaultLogDir } from "../src/logdir.js";
 
 export const DEFAULTS = {
   guildIds: [],
@@ -43,14 +44,6 @@ export function resolvePluginConfig(pc = {}, { env = process.env, stateDir, logg
     if (!c.webhook.url) c.webhook.url = fs.readFileSync(expand(c.webhook.urlFile), "utf8").trim();
   }
   return c;
-}
-
-// OpenClaw writes to /tmp/openclaw, or to <tmpdir>/openclaw-<uid> when that is unsafe.
-function defaultLogDir() {
-  const primary = "/tmp/openclaw";
-  if (process.platform !== "win32" && fs.existsSync(primary)) return primary;
-  const uid = typeof process.getuid === "function" ? process.getuid() : "";
-  return path.join(os.tmpdir(), `openclaw-${uid}`);
 }
 
 function expand(p) {
