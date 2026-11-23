@@ -38,7 +38,9 @@ export function resolvePluginConfig(pc = {}, { env = process.env, stateDir, logg
   if (pc.logFile) c.logFile = expand(pc.logFile);
   else if (logging?.file) c.logFile = expand(logging.file);
   c.logDir = expand(pc.logDir) || defaultLogDir();
-  c.stateFile = expand(pc.stateFile) || path.join(stateDir, "voice-transcript-relay", "state.json");
+  c.stateFile =
+    expand(pc.stateFile) ||
+    path.join(stateDir, "voice-transcript-relay", pc.stateFileSuffix ? `state-${pc.stateFileSuffix}.json` : "state.json");
   if (pc.webhook?.urlFile || pc.webhook?.url) {
     c.webhook = { ...pc.webhook };
     if (!c.webhook.url) c.webhook.url = fs.readFileSync(expand(c.webhook.urlFile), "utf8").trim();

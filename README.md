@@ -125,6 +125,22 @@ Plugin: `plugins.entries.voice-transcript-relay.config`. CLI: the JSON file give
 
 CLI only — environment variables override the file: `VTR_CONFIG`, `VTR_PROFILE`, `VTR_LOG_DIR`, `VTR_GUILD_IDS`, `VTR_CHANNEL_IDS`, `VTR_ALL_CHANNELS`, `VTR_EXCLUDE_CHANNEL_IDS`, `VTR_ASSISTANT_NAME`, `VTR_FLUSH_MS`, `VTR_WEBHOOK_URL`, `VTR_THREAD_ID`, `VTR_BOT_TOKEN`, `VTR_STATE_FILE`.
 
+## Several bots in one Gateway
+
+When one Gateway runs several Discord bots (OpenClaw multi-agent with `channels.discord.accounts`), give each bot its own entry in `rooms`. Each entry takes the same keys as the top level and is laid over them; set `accountId` so the bot posts as itself. Each entry keeps its own read position (`state-<accountId>.json`; the first entry keeps `state.json`).
+
+```json5
+"voice-transcript-relay": { "enabled": true, "config": {
+  "flushMs": 5000,
+  "rooms": [
+    { "accountId": "default", "channelIds": ["<room of bot A>"], "assistantName": "Bot A" },
+    { "accountId": "kopuu",   "channelIds": ["<room of bot B>"], "assistantName": "Bot B" }
+  ]
+} }
+```
+
+If both bots can be in a call at the same time, the transcript lines must say which room they are from: `discord voice: realtime <role> transcript (<n> chars) guild=<g> channel=<c>: <text>`. Stock `@openclaw/discord` 2026.10.6 does not write `guild=` / `channel=` there; without them, lines are assigned to the latest room (fine for one call at a time). Joins, leaves and speaker turns are tracked per room either way, so one bot leaving does not end the other's stay.
+
 ## Before you use it with other people
 
 Everything said in the room by anyone the bot hears is posted, with their name, to a text channel that may have a different audience. Tell people before they join, and pick a destination only the participants can read. Discord voice channels have no topic and their chat cannot pin messages, so the plugin posts `sessionHeader` in the chat each time the agent joins, before anything said there; say it there, and in a server rule or channel the participants read. Use `channelIds` to keep it to the rooms you meant.
@@ -135,7 +151,7 @@ Everything said in the room by anyone the bot hears is posted, with their name, 
 - **Long utterances are cut at 500 characters** by the Gateway's logger. Such lines end with `truncatedMark`.
 - **Only realtime mode.** In `stt-tts` mode the Gateway does not log these lines.
 - **Speech the realtime model did not transcribe is not there** — e.g. people the bot is not set up to talk to. For a full record of everyone in the room, use OpenClaw's transcripts feature.
-- **One voice room at a time per Gateway.** Transcript lines carry no room id; they are assigned to the room of the latest `joined` / `turn opened` line.
+- **One voice room at a time per Gateway, unless the Gateway names the room.** Stock transcript lines carry no room id; they are assigned to the room of the latest `joined` / `turn opened` line. See [Several bots in one Gateway](#several-bots-in-one-gateway).
 - **Who said it is inferred** when several people talk at once (`Name?`).
 - **Joins and leaves only while the agent is in the room.** The Gateway logs individual joins and leaves only then. People already in the room when the agent joins — including the person whose arrival makes the agent join (`whenOccupied` auto-join) — appear in the log only as a count, so they get no join line and no join notice; the `sessionHeader`, posted before their first line, is what tells them. Nothing is logged while the agent is not in the room.
 - **Mentions through the Gateway's account.** OpenClaw's Discord send does not take per-message mention settings, so join/leave lines use names, not mentions; only the join notice mentions anyone.
@@ -164,6 +180,7 @@ OpenClaw の Discord ボイス（realtime モード）で bot と話した内容
 - **入退室と入室案内**: bot が VC にいる間の入退室を `➡️ 名前 joined` / `⬅️ 名前 left` で流し、入ってきた人にはメンションで「このチャンネルの会話は文字で転記されています」と知らせます（`welcome.text` で文言を変更、`welcome.enabled: false` で停止）。bot・ほかの bot・名前を引けない人には出しません。**bot が入った時点ですでに部屋にいた人（自動入室のきっかけになった人を含む）はログに人数しか出ないため、入退室の行も案内も出ません**。その場合は、最初の転記の前に流れる `sessionHeader` で伝えます。何を流すかは `relay: { user, assistant, presence }` で個別に切れます。
 - **既定はオフ**: `channelIds`（または `guildIds`）で VC を指定するか、`allChannels: true` を書くまで何も流しません（0.4.0〜。それまでは既定で全部を流していたので、全部流したい場合は `allChannels: true` を足してください）。`excludeChannelIds` で指定した VC は常に流しません。
 - **CLI 版とプラグインを同じ gateway に同時に使わない**（二重に流れます）。切り替えるときは CLI を止め、プラグインの `stateFile` を CLI の位置ファイルに向けると続きから流れます。
+- **1つの gateway に複数の bot**（0.5.0〜）: `rooms` に bot ごとの設定（`accountId`・`channelIds`・`assistantName` など）を並べます。入退室・話者は部屋ごとに分けて追います。2つの部屋で同時に話すなら、文字起こしの行に `guild=` / `channel=` が要ります（素の `@openclaw/discord` 2026.10.6 には無い。無ければ直近の部屋に割り当て）。
 - **制限**: ログの書式は公開 API ではありません（2026.9.6 で確認、更新後は `--replay` で確認を）。500 文字を超える発話はログ側で切られます。stt-tts モードは対象外です。
 
 設定は上の表を参照してください。webhook の URL は JSON に書かず、`webhook.urlFile` か環境変数 `VTR_WEBHOOK_URL` で渡します。
