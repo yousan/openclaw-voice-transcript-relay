@@ -2,7 +2,7 @@
   "id": "voice-transcript-relay",
   "name": "Voice Transcript Relay",
   "description": "Posts what is said in a Discord voice channel — the humans and the agent — into a text channel as it is said, for the voice channels you choose. Off until configured. No model calls.",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "categories": [
     "voice"
   ],
@@ -253,6 +253,145 @@
       },
       "allChannels": {
         "type": "boolean"
+      },
+      "rooms": {
+        "type": "array",
+        "description": "Several bots in one Gateway: one entry per bot/room set. Each entry takes the same keys as the top level (channelIds, assistantName, accountId, sessionHeader, …) and is laid over the top-level keys. Each entry keeps its own read position. Needs a Gateway that names the room on transcript lines (see README).",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "guildIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "channelIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "assistantName": {
+              "type": "string"
+            },
+            "speakerNames": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "speakerWindowMs": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "showTime": {
+              "type": "boolean"
+            },
+            "timeZone": {
+              "type": "string"
+            },
+            "sessionHeader": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "const": false
+                }
+              ]
+            },
+            "truncatedMark": {
+              "type": "string"
+            },
+            "to": {
+              "type": "string"
+            },
+            "accountId": {
+              "type": "string"
+            },
+            "webhook": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "urlFile": {
+                  "type": "string"
+                },
+                "threadId": {
+                  "type": "string"
+                },
+                "username": {
+                  "type": "string"
+                },
+                "avatarUrl": {
+                  "type": "string"
+                }
+              }
+            },
+            "stateFile": {
+              "type": "string"
+            },
+            "relay": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "user": {
+                  "type": "boolean"
+                },
+                "assistant": {
+                  "type": "boolean"
+                },
+                "presence": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "welcome": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            },
+            "joinedText": {
+              "type": "string"
+            },
+            "leftText": {
+              "type": "string"
+            },
+            "excludeChannelIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "excludeGuildIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "sessionFooter": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "const": false
+                }
+              ]
+            },
+            "allChannels": {
+              "type": "boolean"
+            }
+          }
+        }
       }
     }
   }

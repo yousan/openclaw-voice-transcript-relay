@@ -28,27 +28,42 @@ export default {
       reload: { configPrefixes: [`plugins.entries.${PLUGIN_ID}`] },
       async start(ctx) {
         const log = api.logger || console;
-        const config = resolvePluginConfig(api.pluginConfig, {
-          env: process.env,
-          stateDir: stateDir(api),
-          logging: hostConfig(api, ctx)?.logging,
-        });
-        const token = discordToken(hostConfig(api, ctx), config.accountId);
-        running = startRelay({
-          config,
-          send: createSender(api, ctx, config),
-          log: prefixed(log),
-          lookup: token ? memberLookup({ token }) : undefined,
+        const host = { env: process.env, stateDir: stateDir(api), logging: hostConfig(api, ctx)?.logging };
+        // One relay per room entry (several bots in one Gateway), or one for the whole config.
+        running = roomConfigs(api.pluginConfig).map((pc, i, all) => {
+          const config = resolvePluginConfig(pc, host);
+          const token = discordToken(hostConfig(api, ctx), config.accountId);
+          return startRelay({
+            config,
+            send: createSender(api, ctx, config),
+            log: prefixed(log, all.length > 1 ? `[${config.accountId || config.assistantName || i}] ` : ""),
+            lookup: token ? memberLookup({ token }) : undefined,
+          });
         });
       },
       async stop() {
         const r = running;
         running = null;
-        await r?.stop();
+        await Promise.all((r ?? []).map((x) => x.stop()));
       },
     });
   },
 };
+
+/**
+ * `rooms: [{...}, ...]` → one plugin config per room: the shared keys, then the room's own on top.
+ * Each room gets its own read position. The first keeps the plain state file, so turning a single
+ * config into `rooms` does not replay or skip anything for it.
+ */
+export function roomConfigs(pc = {}) {
+  const { rooms, ...shared } = pc;
+  if (!Array.isArray(rooms) || rooms.length === 0) return [pc];
+  return rooms.map((room, i) => {
+    const c = { ...shared, ...room };
+    if (i > 0 && !room.stateFile && !shared.stateFile) c.stateFileSuffix = room.accountId || String(i);
+    return c;
+  });
+}
 
 /** Deliver through the Gateway's Discord account, or a webhook when one is configured. */
 export function createSender(api, ctx, config) {
@@ -92,9 +107,9 @@ function stateDir(api) {
   return process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
 }
 
-function prefixed(log) {
+function prefixed(log, tag = "") {
   return {
-    info: (m) => log.info(`voice-transcript-relay: ${m}`),
-    warn: (m) => log.warn(`voice-transcript-relay: ${m}`),
+    info: (m) => log.info(`voice-transcript-relay: ${tag}${m}`),
+    warn: (m) => log.warn(`voice-transcript-relay: ${tag}${m}`),
   };
 }

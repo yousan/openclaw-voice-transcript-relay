@@ -5,6 +5,8 @@
 //   discord voice: realtime speaker turn opened guild=<g> channel=<c> user=<u> speaker=<label> owner=<bool>
 //   discord voice: realtime user transcript (<n> chars): <text>
 //   discord voice: realtime assistant transcript (<n> chars): <text>
+//     (or "... (<n> chars) guild=<g> channel=<c>: <text>" when the Gateway names the room — needed when one
+//      Gateway runs several Discord bots, each in its own voice room; see README "Several bots in one Gateway")
 //   discord voice: participant joined|left event queued guild=<g> channel=<c> user=<u> ...
 //     (only while the agent is in the room; the agent itself is excluded, other bots are not)
 //   discord voice: participant session-ended event queued guild=<g> channel=<c> ...  (the agent left)
@@ -15,7 +17,7 @@ const JOINED = /^discord voice: joined guild=(\S+) channel=(\S+)(?: .*?\bagent=(
 const TURN_OPENED = /^discord voice: realtime speaker turn opened guild=(\S+) channel=(\S+) user=(\S+) speaker=(.*?) owner=(\S+)/;
 const SESSION_ENDED = /^discord voice: participant session-ended event queued guild=(\S+) channel=(\S+)/;
 const PRESENCE = /^discord voice: participant (joined|left) event queued guild=(\S+) channel=(\S+) user=(\S+)/;
-const TRANSCRIPT = /^discord voice: realtime (user|assistant) transcript \((\d+) chars\): ([\s\S]*)$/;
+const TRANSCRIPT = /^discord voice: realtime (user|assistant) transcript \((\d+) chars\)(?: guild=(\S+) channel=(\S+))?: ([\s\S]*)$/;
 
 export function parseLine(line) {
   if (!line || line[0] !== "{" || !line.includes("discord voice: ")) return null;
@@ -32,11 +34,12 @@ export function parseLine(line) {
   let m = TRANSCRIPT.exec(message);
   if (m) {
     const length = Number(m[2]);
-    let text = m[3].trim();
+    let text = m[5].trim();
     // The logger cuts at 500 UTF-16 units and appends "...".
     const truncated = length > 500 && text.endsWith("...") && text.length - 3 >= 499;
     if (truncated) text = text.slice(0, -3);
-    return { type: m[1], at, text, length, truncated };
+    const room = m[3] ? { guildId: m[3], channelId: m[4] } : {};
+    return { type: m[1], at, text, length, truncated, ...room };
   }
   m = SESSION_ENDED.exec(message);
   if (m) return { type: "left", at, guildId: m[1], channelId: m[2] };
